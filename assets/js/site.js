@@ -554,7 +554,7 @@
   function dropify(root) {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.nodeValue.includes('🩸') && !n.parentNode.closest('textarea,script,style,option,title,svg,input') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT) });
     const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
-    nodes.forEach((n) => { const span = document.createElement('span'); span.innerHTML = esc(n.nodeValue).replace(/🩸/g, DROP); n.replaceWith(...span.childNodes); });
+    nodes.forEach((n) => { const span = document.createElement('span'); span.innerHTML = esc(n.nodeValue).replace(/(\S*)🩸([^\s]*)/g, (m, a, b) => '<span class="nw">' + a + DROP + b + '</span>'); n.replaceWith(...span.childNodes); });
   }
   function marks() {
     $$('img[data-mark]').forEach((im) => {
@@ -571,6 +571,6 @@
   if (pages[page]) pages[page]();
   // un sticker 69💯 le🩸 sur les en-têtes de pages
   $$('.page-head .wrap').forEach((w) => { const im = document.createElement('img'); im.className = 'sticker sticker--head'; im.setAttribute('data-mark', ''); im.alt = ''; im.setAttribute('aria-hidden', 'true'); w.append(im); });
-  marks(); dropify(document.body);
-  new MutationObserver((ms) => { ms.forEach((m) => m.addedNodes.forEach((n) => { if (n.nodeType === 1) { dropify(n); if (n.matches && (n.matches('img[data-mark]') || n.querySelector('img[data-mark]'))) marks(); } else if (n.nodeType === 3 && n.nodeValue.includes('🩸') && n.parentNode) dropify(n.parentNode); })); }).observe(document.body, { childList: true, subtree: true });
+  S.typo(document.body); marks(); dropify(document.body);
+  new MutationObserver((ms) => { ms.forEach((m) => m.addedNodes.forEach((n) => { if (n.nodeType === 1) { S.typo(n); dropify(n); if (n.matches && (n.matches('img[data-mark]') || n.querySelector('img[data-mark]'))) marks(); } else if (n.nodeType === 3 && n.nodeValue.includes('🩸') && n.parentNode) dropify(n.parentNode); })); }).observe(document.body, { childList: true, subtree: true });
 })();

@@ -1123,4 +1123,6 @@
 
   /* ---------- démarrage ---------- */
   if (authed()) { shell(); route(); } else loginView();
+  new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach((n) => { if (n.nodeType === 1) S.typo(n); }))).observe(document.body, { childList: true, subtree: true });
+  S.typo(document.body);
 })();

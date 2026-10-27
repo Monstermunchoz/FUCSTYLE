@@ -162,5 +162,24 @@
     }
   };
 
+  /* Typo française : la ponctuation reste collée au mot (espace insécable fine),
+     elle ne part jamais seule à la ligne. */
+  Store.typo = function (root) {
+    if (!root || !document.createTreeWalker) return;
+    const skip = 'textarea,script,style,input,option,title,code,pre';
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => (/[  ]([?!:;»%€])|«[  ]|[  ](—|–)[  ]/.test(n.nodeValue) && !(n.parentNode && n.parentNode.closest && n.parentNode.closest(skip)) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT)
+    });
+    const list = []; while (w.nextNode()) list.push(w.currentNode);
+    list.forEach((n) => {
+      n.nodeValue = n.nodeValue
+        .replace(/[  ]+([?!;»%])/g, ' $1')
+        .replace(/[  ]+(:)/g, ' $1')
+        .replace(/[  ]+([0-9]*[,.]?[0-9]+)?[  ]*€/g, (m) => m.replace(/[  ]+€/, ' €'))
+        .replace(/«[  ]+/g, '« ')
+        .replace(/[  ](—|–)[  ]/g, ' $1 ');
+    });
+  };
+
   window.Store = Store;
 })();
