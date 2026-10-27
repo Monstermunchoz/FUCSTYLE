@@ -117,7 +117,8 @@
   const csv = (rows) => '﻿' + rows.map((r) => r.map((c) => '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"').join(';')).join('\n');
   function imgPicker(container, current, onPick, opts) {
     opts = opts || {};
-    container.innerHTML = `<div class="cover-pick"><img src="${esc(current || '')}" alt="" data-prev>
+    const shown = current && !/^(https?:|data:|\.\.\/)/.test(current) ? '../' + current : (current || '');
+    container.innerHTML = `<div class="cover-pick"><img src="${esc(shown)}" alt="" data-prev>
       <div class="stack" style="gap:8px"><label class="btn btn--sm" style="width:max-content">${I('upload')} Choisir une image<input type="file" accept="image/*" hidden></label>
       <input class="input" placeholder="…ou colle un lien d’image (https://…)" value="${/^data:/.test(current || '') ? '' : esc(current || '')}" data-url></div></div>`;
     const prev = $('[data-prev]', container);

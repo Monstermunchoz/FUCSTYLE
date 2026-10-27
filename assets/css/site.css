@@ -714,3 +714,10 @@ svg.drop { display: inline-block; width: .62em; height: .78em; vertical-align: -
 .product-card .meta .badge { position: static; display: inline-block; margin: 0 0 8px; transform: rotate(-2deg); background: var(--ink); color: var(--white); padding: 3px 8px; font-size: .78rem; font-weight: 700; }
 .price-tag { right: -8px; max-width: calc(100% - 4px); white-space: nowrap; }
 @media (max-width: 720px) { .price-tag { font-size: 1.35rem; padding: 5px 9px 3px; top: 14px; } }
+
+/* Logo 69💯 LE SANG : sticker rond */
+img.sticker { border-radius: 50%; background: var(--white); border: 4px solid var(--white); box-shadow: 0 8px 16px -6px rgba(0,0,0,.55); filter: none; aspect-ratio: 1 !important; object-fit: cover; }
+.sticker--tr, .sticker--tl { width: clamp(96px, 10vw, 140px); }
+.sticker--foot { width: 130px; border-color: #111; }
+@media (max-width: 720px) { .sticker--tr, .sticker--tl { width: 84px; top: -42px; } }
+@media (max-width: 720px) { .sticker--tr, .sticker--tl { top: -64px; right: 10px; width: 78px; } }

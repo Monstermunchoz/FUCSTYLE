@@ -5,11 +5,11 @@
   const U = 'https://fucstyle.fr/wp-content/uploads/';
 
   window.FUC_DEFAULTS = {
-    version: 7,
+    version: 8,
 
     site: {
       logo: U + '2023/02/Design-sans-titre-47.png',
-      mark: '',
+      mark: 'assets/img/69-le-sang.png',
       heroVideo: U + '2025/11/WhatsApp-Video-2025-11-14-at-01.32.13.mp4',
       heroVideoStart: 1,
       heroTitle: 'WE ARE MUSIC STUDIO',
