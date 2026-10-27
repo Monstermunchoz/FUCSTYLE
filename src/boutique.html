@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="fr">
+<head>
+{{HEAD}}
+<title>Boutique Fucstyle – Album, vinyles, merch | Fucstyle.fr</title>
+<meta name="description" content="Découvrez la boutique officielle de Fucstyle : Album, T-shirts, vinyles, casquettes et pack collector dédicacé.">
+</head>
+<body data-page="shop">
+<main>
+  <header class="page-head">
+    <div class="wrap">
+      <h1 class="display">Shop</h1>
+      <p data-banner></p>
+    </div>
+  </header>
+  <section class="section">
+    <div class="wrap">
+      <div class="shop-bar">
+        <div class="chips" data-chips></div>
+        <div style="display:flex;gap:16px;align-items:center">
+          <span class="muted" data-count></span>
+          <label class="sr-only" for="sort">Trier</label>
+          <select id="sort" class="select" data-sort>
+            <option value="default">Mis en avant</option>
+            <option value="asc">Prix croissant</option>
+            <option value="desc">Prix décroissant</option>
+          </select>
+        </div>
+      </div>
+      <div class="products wall" data-products></div>
+    </div>
+  </section>
+</main>
+{{SCRIPTS}}
+</body>
+</html>
