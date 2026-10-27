@@ -5,7 +5,7 @@
   const U = 'https://fucstyle.fr/wp-content/uploads/';
 
   window.FUC_DEFAULTS = {
-    version: 8,
+    version: 9,
 
     site: {
       logo: U + '2023/02/Design-sans-titre-47.png',
@@ -55,8 +55,8 @@
       contactText: 'Laisse ton message ici, pas besoin de long discours. Que tu sois fan, artiste, ou juste curieux — on lit tout, on répond vrai.',
       contactImage: U + '2025/10/Design-sans-titre-2025-10-21T095327.749.jpg',
       email: 'fucstyler@gmail.com',
-      shopBanner: 'Sortie officielle le 12 décembre',
-      shippingNote: 'Tout est en précommande — envois à partir du 12 décembre. Merci pour la force !',
+      shopBanner: 'L’album 69💯 Le🩸, le merch et les éditions collector. Envoi depuis Lyon.',
+      shippingNote: 'Expédié depuis Lyon sous 48 h. Merci pour la force !',
       socials: {
         instagram: 'https://www.instagram.com/fucstyle/',
         youtube: 'https://www.youtube.com/@FUCSTYLE',
@@ -75,25 +75,25 @@
     products: [
       {
         id: 'p4155', slug: 'album-cd', name: 'Digipack 💿', category: 'Musique', type: 'CD',
-        price: 12.9, compareAt: null, status: 'publie', preorder: true, featured: true, badge: 'Album',
-        short: 'Tout est en précommande — envois à partir du 12 décembre. Merci pour la force !',
-        description: 'Pré-commandez l’album CD “69💯 Le🩸” de Fucstyle en version digipack. Édition physique, design soigné et envoi rapide. Sortie officielle le 12 Décembre.',
+        price: 12.9, compareAt: null, status: 'publie', preorder: false, featured: true, badge: 'Album',
+        short: 'Le premier album solo de Fucstyle en CD digipack. Merci pour la force !',
+        description: 'L’album CD “69💯 Le🩸” de Fucstyle en version digipack. Édition physique, design soigné et envoi rapide.',
         images: [U + '2025/10/Gemini_Generated_Image_r9ikqsr9ikqsr9ik.png'],
         sizes: [], colors: [], variants: [], stock: 362, lowStock: 10, sku: 'FUC-CD-69', weight: 0.12
       },
       {
         id: 'p4275', slug: 'casquette-f', name: 'Casquette F 🩸', category: 'Merch', type: 'Casquette',
-        price: 16.9, compareAt: null, status: 'publie', preorder: true, featured: true, badge: '',
+        price: 16.9, compareAt: null, status: 'publie', preorder: false, featured: true, badge: '',
         short: 'La casquette officielle du Fucstyle ! Tu l’as vu sur ma tête, bientôt sur la tienne 🩸',
-        description: 'Tout est en précommande — envois à partir du 12 décembre. Merci pour la force!',
+        description: 'Broderie F sur le devant, goutte rouge sur le côté. Merci pour la force !',
         images: [U + '2025/11/Gemini_Generated_Image_qgjlytqgjlytqgjl.png'],
         sizes: [], colors: [], variants: [], stock: 2, lowStock: 5, sku: 'FUC-CAP-F', weight: 0.15
       },
       {
         id: 'p-tshirt', slug: 't-shirt', name: 'T-shirt', category: 'Merch', type: 'T-shirt',
-        price: 25, compareAt: null, status: 'publie', preorder: true, featured: true, badge: '',
+        price: 25, compareAt: null, status: 'publie', preorder: false, featured: true, badge: '',
         short: 'La pochette officielle réalisée par Soulgraff. Soutiens la cause et porte mes couleurs 🩸',
-        description: 'Tout est en précommande — envois à partir du 12 décembre. Merci pour la force !',
+        description: 'Le visuel de l’album 69💯 Le🩸 signé Soulgraff. Merci pour la force !',
         images: [U + '2025/11/WhatsApp-Image-2025-11-11-at-17.05.55.jpeg'],
         sizes: ['S', 'M', 'L', 'XL'], colors: [],
         variants: [
@@ -104,9 +104,9 @@
       },
       {
         id: 'p-collector', slug: 'pack-ultra-collector', name: 'Pack Ultra Collector (50 exemplaires)', category: 'Collector', type: 'Pack',
-        price: 75, compareAt: null, status: 'publie', preorder: true, featured: true, badge: '50 ex.',
+        price: 75, compareAt: null, status: 'publie', preorder: false, featured: true, badge: '50 ex.',
         short: 'Toute la panoplie 🩸 (casquette + T-shirt + CD + vinyle collector blanc ou rouge selon disponibilité* + briquet, stickers et cadeaux surprises)',
-        description: 'Seulement 50 exemplaires dédicacés ! Une chance 🍀 sur 50 de gagner : une pochette en plaque métallisée 45×45 cm pour sublimer ton salon*, et une à deux invitations d’office pour mon prochain concert ! Tout est en précommande — envois à partir du 12 décembre. Merci pour la force !',
+        description: 'Seulement 50 exemplaires dédicacés ! Une chance 🍀 sur 50 de gagner : une pochette en plaque métallisée 45×45 cm pour sublimer ton salon*, et une à deux invitations d’office pour mon prochain concert ! Merci pour la force !',
         images: [U + '2025/11/WhatsApp-Image-2025-10-30-at-19.43.34.jpeg'],
         sizes: ['S', 'M', 'L', 'XL'], colors: ['Blanc', 'Rouge'],
         variants: [
@@ -119,25 +119,25 @@
       },
       {
         id: 'p4038', slug: 'vinyl', name: 'Vinyl', category: 'Musique', type: 'Vinyle',
-        price: 25, compareAt: null, status: 'publie', preorder: true, featured: true, badge: '',
-        short: 'Tout est en précommande — envois à partir du 12 décembre. Merci pour la force !',
-        description: 'Vinyle noir classique de Fucstyle. Pressage officiel, son haute qualité. Version standard disponible en précommande sur la boutique officielle.',
+        price: 25, compareAt: null, status: 'publie', preorder: false, featured: true, badge: '',
+        short: 'L’album 69💯 Le🩸 en vinyle noir. Merci pour la force !',
+        description: 'Vinyle noir classique de Fucstyle. Pressage officiel, son haute qualité. Version standard.',
         images: [U + '2025/10/Vinyl-2.jpg'],
         sizes: [], colors: [], variants: [], stock: 156, lowStock: 10, sku: 'FUC-LP-NOIR', weight: 0.3
       },
       {
         id: 'p-vinyl-rouge', slug: 'vinyl-collector-rouge', name: 'Vinyl Collector rouge', category: 'Musique', type: 'Vinyle',
-        price: 30, compareAt: null, status: 'publie', preorder: true, featured: true, badge: 'Série limitée',
+        price: 30, compareAt: null, status: 'publie', preorder: false, featured: true, badge: 'Série limitée',
         short: 'Série limitée.',
-        description: 'Tout est en précommande — envois à partir du 12 décembre. Merci pour la force !',
+        description: 'Vinyle collector, tirage limité. Merci pour la force !',
         images: [U + '2025/10/Vinyl-1.jpg'],
         sizes: [], colors: [], variants: [], stock: 0, lowStock: 5, sku: 'FUC-LP-ROUGE', weight: 0.3
       },
       {
         id: 'p4039', slug: 'vinyl-collector-blanc', name: 'Vinyl Collector blanc', category: 'Musique', type: 'Vinyle',
-        price: 30, compareAt: null, status: 'publie', preorder: true, featured: true, badge: 'Série limitée',
+        price: 30, compareAt: null, status: 'publie', preorder: false, featured: true, badge: 'Série limitée',
         short: 'Série limitée.',
-        description: 'Tout est en précommande — envois à partir du 12 décembre. Merci pour la force !',
+        description: 'Vinyle collector, tirage limité. Merci pour la force !',
         images: [U + '2025/10/Vinyl.jpg'],
         sizes: [], colors: [], variants: [], stock: 15, lowStock: 5, sku: 'FUC-LP-BLANC', weight: 0.3
       }
