@@ -352,3 +352,5 @@ dialog.pmodal::backdrop { background: rgba(0,0,0,.6); }
   .login-box { text-align: center; } .login-box img { margin-left: auto; margin-right: auto; }
   .empty-state { text-align: center; }
 }
+.toast { visibility: hidden; transition: transform .2s ease, visibility 0s .2s; }
+.toast.show { visibility: visible; transition: transform .2s ease; }

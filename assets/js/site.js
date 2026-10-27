@@ -28,7 +28,7 @@
   const page = document.body.dataset.page;
   const NAV = [
     ['index.html', 'Home', 'home'], ['boutique.html', 'Shop', 'shop'], ['clips.html', 'Les derniers clips', 'clips'],
-    ['magazine.html', 'Magazine', 'magazine'], ['a-propos.html', 'À propos', 'about'], ['contact.html', 'Contact', 'contact']
+    ['magazine.html', 'L’actu', 'magazine'], ['a-propos.html', 'À propos', 'about'], ['contact.html', 'Contact', 'contact']
   ];
 
   function renderChrome() {
@@ -39,27 +39,31 @@
       <nav class="nav" id="nav" aria-label="Navigation principale">
         ${NAV.map(([h, l, k]) => `<a href="${h}"${(page === k || (page === 'product' && k === 'shop') || (page === 'article' && k === 'magazine')) ? ' aria-current="page"' : ''}>${l}</a>`).join('')}
       </nav>
-      <button class="cart-btn" type="button" data-open-cart aria-label="Ouvrir le panier">${ICON.cart}<span class="cart-count" data-cart-count>0</span></button>
+      <button class="cart-btn" type="button" data-open-cart aria-label="Ouvrir le panier"><span class="cart-word">Panier</span><span class="cart-count" data-cart-count>0</span></button>
       <button class="menu-btn" type="button" aria-controls="nav" aria-expanded="false" aria-label="Menu">${ICON.menu}</button>
     </div>`;
     document.body.prepend(header);
 
     const footer = document.createElement('footer');
     footer.className = 'site-footer';
-    footer.innerHTML = `<div class="wrap">
-      <div class="footer-top">
-        <div><img src="${esc(site.logo)}" alt="Fucstyle"><p>Rappeur lyonnais, membre du SnakeS Crew, cofondateur de Bercail Records. Freestyle tous les dimanches.</p>${socialsHTML()}
-          <form class="news-form" data-news novalidate><label class="sr-only" for="news-mail">Ton email</label><input id="news-mail" type="email" placeholder="Ton email pour les drops et les dates" autocomplete="email"><button type="submit">Rejoindre</button></form><div data-news-msg></div></div>
-        <div><h3>Le site</h3><ul class="footer-links">
-          <li><a href="boutique.html">Shop</a></li><li><a href="clips.html">Les derniers clips</a></li><li><a href="magazine.html">Magazine</a></li>
-          <li><a href="a-propos.html">À propos</a></li><li><a href="contact.html">Contact & booking</a></li></ul></div>
-        <div><h3>Infos</h3><ul class="footer-links">
-          <li><a href="cgv.html">CGV</a></li><li><a href="confidentialite.html">Politique de confidentialité</a></li>
-          <li><a href="mailto:${esc(site.email)}">${esc(site.email)}</a></li><li><a href="${esc(site.bercailUrl)}" target="_blank" rel="noopener">Bercail Records</a></li></ul></div>
+    footer.innerHTML = `<div class="footer-tear" aria-hidden="true"></div><div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-join">
+          <p class="footer-kicker">Rejoins la team</p>
+          <p class="footer-title display">Drops, dates et freestyles en avant-première</p>
+          <form class="news-form" data-news novalidate><label class="sr-only" for="news-mail">Ton email</label><input id="news-mail" type="email" placeholder="ton@email.fr" autocomplete="email"><button type="submit">Je rejoins</button></form><div data-news-msg></div>
+        </div>
+        <nav class="footer-nav" aria-label="Pied de page">
+          <a href="boutique.html">Shop</a><a href="clips.html">Clips</a><a href="magazine.html">L’actu</a><a href="a-propos.html">À propos</a><a href="contact.html">Booking</a>
+        </nav>
+        <div class="footer-side">
+          <img class="sticker sticker--foot" data-mark alt="69💯 le🩸">
+          ${socialsHTML()}
+          <a class="footer-mail" href="mailto:${esc(site.email)}">${esc(site.email)}</a>
+        </div>
       </div>
-      <img class="footer-mark" src="${esc(site.mark)}" alt="69💯 le🩸">
-      <div class="footer-big" aria-hidden="true">FUCSTYLE</div>
-      <div class="footer-bottom"><span>© ${new Date().getFullYear()} FUCSTYLE. Tous droits réservés.</span><a href="${esc(site.creditUrl)}" target="_blank" rel="noopener">${esc(site.credit)}</a></div>
+      <div class="footer-bottom"><span>© ${new Date().getFullYear()} Fucstyle — <a href="${esc(site.bercailUrl)}" target="_blank" rel="noopener">Bercail Records</a></span>
+        <span><a href="cgv.html">CGV</a> · <a href="confidentialite.html">Confidentialité</a> · <a href="${esc(site.creditUrl)}" target="_blank" rel="noopener">${esc(site.credit)}</a></span></div>
     </div>`;
     document.body.append(footer);
     $('[data-news]', footer).addEventListener('submit', (e) => {
@@ -109,7 +113,7 @@
   function renderCart() {
     const lines = S.cartLines(D);
     const count = lines.reduce((s, l) => s + l.qty, 0);
-    $$('[data-cart-count]').forEach((el) => (el.textContent = count));
+    $$('[data-cart-count]').forEach((el) => { el.textContent = count; el.toggleAttribute('data-zero', !count); });
     const body = $('[data-cart-body]'), foot = $('[data-cart-foot]');
     if (!body) return;
     if (!lines.length) {
@@ -170,64 +174,63 @@
   }
   function bindYT(root) {
     $$('[data-yt]', root).forEach((b) => b.addEventListener('click', () => {
+      if (music) music.stop();
       const f = document.createElement('iframe');
       f.src = `https://www.youtube-nocookie.com/embed/${b.dataset.yt}?autoplay=1&rel=0`;
       f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen'; f.allowFullscreen = true; f.title = b.getAttribute('aria-label');
       b.replaceWith(f);
     }));
   }
-  /* Clip lancé avec le son dès l'arrivée (comme sur le site actuel).
-     Si le navigateur bloque le son, le clip part en muet et le son arrive au premier clic/toucher. */
-  let ytPlayer = null, soundCb = null;
-  function autoClip(frame, id) {
-    frame.innerHTML = '<div id="yt-auto" style="position:absolute;inset:0;width:100%;height:100%"></div>';
-    const setSound = (on) => { if (soundCb) soundCb(on); };
-    const waitGesture = () => {
-      const go = (e) => {
-        if (e && e.target && e.target.closest && e.target.closest('[data-sound]')) return;
-        if (!ytPlayer || !ytPlayer.unMute) return;
-        ytPlayer.unMute(); ytPlayer.setVolume(100); ytPlayer.playVideo(); setSound(true);
-        ['pointerdown', 'keydown', 'touchstart'].forEach((ev) => document.removeEventListener(ev, go, true));
-      };
-      ['pointerdown', 'keydown', 'touchstart'].forEach((ev) => document.addEventListener(ev, go, true));
+  /* ---------- Musique au démarrage (piste YouTube jouée en fond) ----------
+     Les navigateurs bloquent parfois le son automatique : dans ce cas la musique
+     démarre au premier clic / toucher du visiteur. Bouton vinyle pour couper. */
+  let music = null;
+  function introMusic(id, title) {
+    const box = document.createElement('div');
+    box.className = 'music-btn';
+    box.innerHTML = `<button type="button" aria-pressed="false" aria-label="Lancer la musique"><span class="vinyl" aria-hidden="true"></span><span class="mlabel"><b>${esc(title)}</b><small>Appuie pour le son</small></span></button><div id="yt-intro" aria-hidden="true"></div>`;
+    document.body.append(box);
+    const btn = $('button', box), small = $('small', box);
+    let player = null, wanted = true;
+    const paint = (on) => { box.classList.toggle('on', on); btn.setAttribute('aria-pressed', on); btn.setAttribute('aria-label', on ? 'Couper la musique' : 'Lancer la musique'); small.textContent = on ? 'En lecture' : 'Appuie pour le son'; };
+    const playSound = () => { if (!player || !player.unMute) return; player.unMute(); player.setVolume(80); player.playVideo(); paint(true); };
+    const gesture = (e) => {
+      if (e.target.closest && (e.target.closest('.music-btn') || e.target.closest('[data-yt]'))) return;
+      if (wanted) playSound();
+      ['pointerdown', 'keydown', 'touchstart'].forEach((ev) => document.removeEventListener(ev, gesture, true));
     };
+    ['pointerdown', 'keydown', 'touchstart'].forEach((ev) => document.addEventListener(ev, gesture, true));
+    btn.addEventListener('click', () => {
+      if (box.classList.contains('on')) { wanted = false; player && player.pauseVideo(); paint(false); }
+      else { wanted = true; playSound(); }
+    });
     const init = () => {
-      ytPlayer = new YT.Player('yt-auto', {
-        videoId: id,
-        playerVars: { autoplay: 1, rel: 0, playsinline: 1, modestbranding: 1 },
+      player = new YT.Player('yt-intro', {
+        videoId: id, width: 200, height: 112,
+        playerVars: { autoplay: 1, controls: 0, rel: 0, playsinline: 1, loop: 1, playlist: id },
         events: {
-          onReady: (e) => {
-            e.target.unMute(); e.target.setVolume(100); e.target.playVideo();
-            setTimeout(() => {
-              if (e.target.getPlayerState() === 1 && !e.target.isMuted()) { setSound(true); return; }
-              e.target.mute(); e.target.playVideo(); setSound(false); waitGesture();
-            }, 1500);
-          }
+          onReady: (e) => { e.target.setVolume(80); e.target.unMute(); e.target.playVideo();
+            setTimeout(() => { if (e.target.getPlayerState() === 1 && !e.target.isMuted()) paint(true); }, 1200); },
+          onStateChange: (e) => { if (e.data === 2 || e.data === 0) paint(false); if (e.data === 1 && !e.target.isMuted()) paint(true); }
         }
       });
     };
     if (window.YT && window.YT.Player) init();
-    else {
-      window.onYouTubeIframeAPIReady = init;
-      const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api';
-      s.onerror = () => { frame.innerHTML = ytCover(id, site.clipName || 'clip'); bindYT(frame); };
-      document.head.append(s);
-    }
+    else { window.onYouTubeIframeAPIReady = init; const sc = document.createElement('script'); sc.src = 'https://www.youtube.com/iframe_api'; sc.onerror = () => box.remove(); document.head.append(sc); }
+    music = { stop: () => { wanted = false; player && player.pauseVideo && player.pauseVideo(); paint(false); } };
   }
 
   function clipBlock(root, opts) {
     opts = opts || {};
     const clips = site.clips && site.clips.length ? site.clips : [{ id: site.clipYoutube, title: site.clipName }];
     root.innerHTML = `<div class="clip-layout">
-      <div class="video-frame" data-frame>${opts.autoplay ? '' : ytCover(clips[0].id, clips[0].title)}</div>
+      <div class="video-frame" data-frame>${ytCover(clips[0].id, clips[0].title)}</div>
       <div><p class="muted" style="margin-top:0">${esc(clips[0].title)}</p>
         <ul class="clip-list">${clips.map((c, i) => `<li><button type="button" data-pick="${i}" aria-current="${i === 0}"><img src="https://i.ytimg.com/vi/${esc(c.id)}/mqdefault.jpg" alt=""><span><strong>${esc(c.title)}</strong><small>YouTube</small></span></button></li>`).join('')}</ul>
         <p style="margin-top:24px"><a class="link-arrow" href="${esc(site.socials.youtube)}" target="_blank" rel="noopener">Abonne-toi à la chaîne</a></p></div></div>`;
-    if (opts.autoplay) autoClip($('[data-frame]', root), clips[0].id);
     bindYT(root);
     $$('[data-pick]', root).forEach((b) => b.addEventListener('click', () => {
       const c = clips[+b.dataset.pick];
-      if (ytPlayer && ytPlayer.destroy) { try { ytPlayer.destroy(); } catch (e) {} ytPlayer = null; soundCb && soundCb(false); }
       $('[data-frame]', root).innerHTML = ytCover(c.id, c.title); bindYT(root);
       $('[data-frame] [data-yt]', root).click();
       $$('[data-pick]', root).forEach((x) => x.setAttribute('aria-current', x === b));
@@ -284,31 +287,13 @@
     home() {
       const v = $('[data-hero-video]');
       v.src = site.heroVideo;
-      $('[data-mark]').src = site.mark;
-      v.addEventListener('loadedmetadata', () => { try { v.currentTime = site.heroVideoStart || 0; } catch (e) {} }, { once: true });
-      const words = site.heroTitle.split(' ');
-      const lines = words.length >= 3 ? [words.slice(0, words.length - 2).join(' '), words[words.length - 2], words[words.length - 1]] : words;
-      $('[data-hero-title]').innerHTML = lines.map((l) => `<span class="ln"><span>${esc(l)}</span></span>`).join('');
-      $('[data-hero-cta]').textContent = site.heroCta;
-      const sb = $('[data-sound]');
-      const paint = (on) => { sb.innerHTML = on ? ICON.soundOn : ICON.soundOff; sb.setAttribute('aria-label', on ? 'Couper le son' : 'Activer le son'); sb.setAttribute('aria-pressed', on); };
-      paint(false);
-      if (site.autoplayClip) {
-        // le bouton son pilote le clip Vanille Pistache ; la vidéo d'entrée reste muette
-        soundCb = paint;
-        sb.addEventListener('click', () => {
-          if (!ytPlayer || !ytPlayer.isMuted) return;
-          if (ytPlayer.isMuted()) { ytPlayer.unMute(); ytPlayer.setVolume(100); ytPlayer.playVideo(); paint(true); } else { ytPlayer.mute(); paint(false); }
-        });
-      } else {
-        sb.addEventListener('click', () => { v.muted = !v.muted; paint(!v.muted); if (v.paused) v.play(); });
-      }
+      if (site.autoplayClip) { const c0 = (site.clips && site.clips[0]) || { id: site.clipYoutube, title: site.clipName }; introMusic(site.introTrack || c0.id, site.introTitle || c0.title); }
       const t = esc(site.ticker); $('[data-ticker]').innerHTML = Array(8).fill(`<span>${t}</span><span aria-hidden="true">🩸</span>`).join('');
 
       $('[data-shop-title]').textContent = site.shopTitle;
       $('[data-products]').innerHTML = S.visibleProducts(D).filter((p) => p.featured).map(productCard).join('');
       $('[data-clip-title]').textContent = site.clipTitle;
-      clipBlock($('[data-clip]'), { autoplay: site.autoplayClip });
+      clipBlock($('[data-clip]'));
 
       $('[data-bio-photo]').src = site.bioPhoto;
       $('[data-bio-title]').textContent = site.bioTitle;
@@ -449,8 +434,8 @@
       const slug = new URLSearchParams(location.search).get('a');
       const a = D.posts.find((x) => x.slug === slug && x.status === 'publie');
       const root = $('[data-article]');
-      if (!a) { root.innerHTML = `<section class="section"><div class="wrap empty"><p class="display">Article introuvable</p><a class="btn btn--ink" href="magazine.html">Retour au magazine</a></div></section>`; return; }
-      setMeta(a.seoTitle || (a.title + ' — Magazine Fucstyle'), a.seoDesc || a.excerpt, a.cover, {
+      if (!a) { root.innerHTML = `<section class="section"><div class="wrap empty"><p class="display">Article introuvable</p><a class="btn btn--ink" href="magazine.html">Retour à l’actu</a></div></section>`; return; }
+      setMeta(a.seoTitle || (a.title + ' — L’actu Fucstyle'), a.seoDesc || a.excerpt, a.cover, {
         '@context': 'https://schema.org', '@type': 'NewsArticle', headline: a.title, description: a.seoDesc || a.excerpt,
         image: /^data:/.test(a.cover) ? undefined : a.cover, datePublished: a.date, keywords: [a.keyword].concat(a.tags || []).filter(Boolean).join(', '),
         author: { '@type': 'Organization', name: 'Fucstyle' }, publisher: { '@type': 'Organization', name: 'Fucstyle', logo: { '@type': 'ImageObject', url: site.logo } }
@@ -465,7 +450,7 @@
           <div class="prose"><p class="lede">${esc(a.excerpt)}</p>${S.md(a.body)}</div>
           ${a.source && a.source.url ? `<div class="source-box"><span>Source : <strong>${esc(a.source.name)}</strong></span><a class="link-arrow" href="${esc(a.source.url)}" target="_blank" rel="noopener">Lire l’article original</a></div>` : ''}
         </div></div>
-        ${others.length ? `<section class="section section--paper"><div class="wrap"><div class="sec-head"><h2 class="display h-section">À lire aussi</h2><a class="link-arrow" href="magazine.html">Tout le magazine</a></div><div class="mag-list">${others.map((o) => storyCard(o, 'story--list')).join('')}</div></div></section>` : ''}`;
+        ${others.length ? `<section class="section section--paper"><div class="wrap"><div class="sec-head"><h2 class="display h-section">À lire aussi</h2><a class="link-arrow" href="magazine.html">Toute l’actu</a></div><div class="mag-list">${others.map((o) => storyCard(o, 'story--list')).join('')}</div></div></section>` : ''}`;
     },
 
     about() {
@@ -565,7 +550,20 @@
     els.forEach((el) => io.observe(el));
   }
 
+  /* Gouttes 🩸 : l'emoji s'affiche rose sur certains écrans, on le remplace par une vraie goutte rouge */
+  const DROP = '<svg class="drop" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 3C32 3 11 28.5 11 41.5C11 53.1 20.4 62 32 62C43.6 62 53 53.1 53 41.5C53 28.5 32 3 32 3Z"/></svg>';
+  function dropify(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.nodeValue.includes('🩸') && !n.parentNode.closest('textarea,script,style,option,title,svg,input') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT) });
+    const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach((n) => { const span = document.createElement('span'); span.innerHTML = esc(n.nodeValue).replace(/🩸/g, DROP); n.replaceWith(...span.childNodes); });
+  }
+  function marks() { $$('img[data-mark]').forEach((im) => { if (!im.getAttribute('src')) im.src = site.mark; }); }
+
   document.title = document.title || site.seoTitle;
   renderChrome();
   if (pages[page]) pages[page]();
+  // un sticker 69💯 le🩸 sur les en-têtes de pages
+  $$('.page-head .wrap').forEach((w) => { const im = document.createElement('img'); im.className = 'sticker sticker--head'; im.setAttribute('data-mark', ''); im.alt = ''; im.setAttribute('aria-hidden', 'true'); w.append(im); });
+  marks(); dropify(document.body);
+  new MutationObserver((ms) => { ms.forEach((m) => m.addedNodes.forEach((n) => { if (n.nodeType === 1) { dropify(n); if (n.matches && (n.matches('img[data-mark]') || n.querySelector('img[data-mark]'))) marks(); } else if (n.nodeType === 3 && n.nodeValue.includes('🩸') && n.parentNode) dropify(n.parentNode); })); }).observe(document.body, { childList: true, subtree: true });
 })();

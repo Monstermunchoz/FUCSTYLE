@@ -5,7 +5,7 @@
   const U = 'https://fucstyle.fr/wp-content/uploads/';
 
   window.FUC_DEFAULTS = {
-    version: 5,
+    version: 6,
 
     site: {
       logo: U + '2023/02/Design-sans-titre-47.png',
@@ -20,6 +20,8 @@
       clipYoutube: 'uDvVj8N55mU',
       autoplayClip: true,
       clipName: 'Vanille Pistache (feat Sakage)',
+      introTrack: '',
+      introTitle: 'Vanille Pistache',
       clips: [
         { id: 'uDvVj8N55mU', title: 'Vanille Pistache (feat Sakage)' },
         { id: 'hWJVY4F6zps', title: 'Chaise Musical(e) (feat Aka Seul Two)' }

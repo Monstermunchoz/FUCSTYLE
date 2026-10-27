@@ -148,7 +148,7 @@
   const NAV = [
     ['Pilotage', [['#/', 'Vue d’ensemble', 'home']]],
     ['Boutique', [['#/produits', 'Produits', 'box'], ['#/stock', 'Stock', 'layers'], ['#/commandes', 'Commandes', 'cart', () => D.orders.filter((o) => o.status === 'payee').length], ['#/clients', 'Clients', 'users'], ['#/notifications', 'Notifications', 'bell'], ['#/promos', 'Codes promo', 'tag']]],
-    ['Contenu', [['#/magazine', 'Magazine', 'pen'], ['#/site', 'Pages du site', 'layout'], ['#/musique', 'Musique & scène', 'music'], ['#/messages', 'Messages', 'mail', () => D.messages.filter((m) => !m.read).length]]],
+    ['Contenu', [['#/magazine', 'L’actu', 'pen'], ['#/site', 'Pages du site', 'layout'], ['#/musique', 'Musique & scène', 'music'], ['#/messages', 'Messages', 'mail', () => D.messages.filter((m) => !m.read).length]]],
     ['Compte', [['#/reglages', 'Réglages', 'gear']]]
   ];
   let dirty = false;
@@ -717,13 +717,13 @@
   views.magazine = (c, args) => {
     if (args[0]) return postEditor(c, args[0]);
     const list = [...D.posts].sort((a, b) => b.date.localeCompare(a.date));
-    c.innerHTML = head('Magazine', list.length + ' articles — presse, clips, scène', `<a class="btn btn--primary" href="#/magazine/nouveau">${I('plus')} Écrire un article</a>`)
+    c.innerHTML = head('L’actu', list.length + ' articles — presse, clips, scène', `<a class="btn btn--primary" href="#/magazine/nouveau">${I('plus')} Écrire un article</a>`)
       + `<section class="panel post-list"><div class="table-wrap">${list.length ? `<table class="t"><thead><tr><th>Article</th><th>Rubrique</th><th>Date</th><th>Statut</th><th></th></tr></thead><tbody>
         ${list.map((a) => `<tr data-id="${a.id}"><td><div class="prod"><img src="${esc(a.cover)}" alt=""><div><b>${esc(a.title)}</b><small>${a.source && a.source.name ? 'Source : ' + esc(a.source.name) : esc(a.author || '')}</small></div></div></td><td>${esc(a.category)}</td><td>${fmtDate(a.date)}</td><td>${pill(a.status, PSTATUS[a.status])}</td>
           <td class="num"><button class="btn btn--sm btn--ghost btn--danger" data-del="${a.id}" aria-label="Supprimer">${I('trash')}</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty-state"><b>Aucun article</b>Écris le premier.</div>'}</div></section>`;
     c.addEventListener('click', async (e) => {
       const del = e.target.closest('[data-del]'), row = e.target.closest('tr[data-id]');
-      if (del) { e.stopPropagation(); const a = D.posts.find((x) => x.id === del.dataset.del); if (await confirmBox('Supprimer cet article ?', `« ${a.title} » sera retiré du magazine.`, 'Supprimer')) { D.posts = D.posts.filter((x) => x !== a); save('Article supprimé'); route(); } return; }
+      if (del) { e.stopPropagation(); const a = D.posts.find((x) => x.id === del.dataset.del); if (await confirmBox('Supprimer cet article ?', `« ${a.title} » sera retiré de l’actu.`, 'Supprimer')) { D.posts = D.posts.filter((x) => x !== a); save('Article supprimé'); route(); } return; }
       if (row) location.hash = '#/magazine/' + row.dataset.id;
     });
   };
@@ -736,7 +736,7 @@
     a.source = a.source || { name: '', url: '' };
     const cats = [...new Set(D.posts.map((x) => x.category).concat(['Actu', 'Clips', 'Scène', 'Presse', 'Freestyle', 'Musique']))];
     const mark = () => { dirty = true; $('[data-dirty]', c).textContent = 'Modifications non enregistrées'; };
-    c.innerHTML = `<p style="margin:0 0 6px"><a href="#/magazine">← Magazine</a></p>` + head(isNew ? 'Nouvel article' : 'Modifier l’article', 'Titre, image, texte : tout ce qu’il faut pour le magazine.', !isNew ? `<a class="btn" href="../article.html?a=${encodeURIComponent(a.slug)}" target="_blank" rel="noopener">${I('eye')} Voir sur le site</a>` : '')
+    c.innerHTML = `<p style="margin:0 0 6px"><a href="#/magazine">← L’actu</a></p>` + head(isNew ? 'Nouvel article' : 'Modifier l’article', 'Titre, photos, texte et SEO : tout pour l’actu.', !isNew ? `<a class="btn" href="../article.html?a=${encodeURIComponent(a.slug)}" target="_blank" rel="noopener">${I('eye')} Voir sur le site</a>` : '')
       + `<div class="cols"><div class="stack">
         <section class="panel"><div class="panel-body stack">
           <div class="field"><label for="at">Titre</label><input id="at" data-k="title" style="font-size:20px;font-weight:700"></div>
@@ -839,7 +839,7 @@
     $('[data-draft]', c).addEventListener('click', () => doSave('brouillon'));
     $('[data-pub]', c).addEventListener('click', () => doSave('publie'));
     const del = $('[data-delete]', c);
-    if (del) del.addEventListener('click', async () => { if (await confirmBox('Supprimer cet article ?', 'Il sera retiré du magazine.', 'Supprimer')) { D.posts = D.posts.filter((x) => x.id !== a.id); dirty = false; save('Article supprimé'); location.hash = '#/magazine'; } });
+    if (del) del.addEventListener('click', async () => { if (await confirmBox('Supprimer cet article ?', 'Il sera retiré de l’actu.', 'Supprimer')) { D.posts = D.posts.filter((x) => x.id !== a.id); dirty = false; save('Article supprimé'); location.hash = '#/magazine'; } });
   }
 
   /* ================= PAGES DU SITE ================= */
@@ -850,10 +850,10 @@
     const sec = (title, sub, body) => `<section class="panel"><div class="panel-head"><div><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div></div><div class="panel-body stack">${body}</div></section>`;
     c.innerHTML = head('Pages du site', 'Les textes, images et liens affichés sur le site.', `<a class="btn" href="../index.html" target="_blank" rel="noopener">${I('eye')} Voir le site</a>`)
       + `<div class="stack">
-      ${sec('Vidéo d’entrée', 'Le grand bandeau en haut de l’accueil', `<div class="grid-2">${F('heroTitle', 'Titre')}${F('heroCta', 'Bouton')}</div>${F('heroVideo', 'Lien de la vidéo (MP4)', { hint: 'Une vidéo est trop lourde pour être stockée ici : dépose-la sur ton hébergement et colle son lien.' })}<div class="field" style="max-width:220px"><label for="hvs">Démarrer à (secondes)</label><input id="hvs" data-k="heroVideoStart" data-num></div>${F('ticker', 'Bande défilante rouge')}`)}
+      ${sec('Vidéo d’entrée', 'Le grand bandeau en haut de l’accueil', `${F('heroVideo', 'Lien de la vidéo (MP4)', { hint: 'Une vidéo est trop lourde pour être stockée ici : dépose-la sur ton hébergement et colle son lien.' })}<div class="field" style="max-width:220px"><label for="hvs">Démarrer à (secondes)</label><input id="hvs" data-k="heroVideoStart" data-num></div>${F('ticker', 'Bande défilante rouge')}`)}
       ${sec('Logo', 'Le logo du menu (goutte rouge + Fucstyle jaune) et le visuel « 69💯 le🩸 »', `<div class="grid-2"><div class="field"><span class="label">Logo du menu</span><div data-img="logo"></div></div><div class="field"><span class="label">Visuel 69💯 le🩸</span><div data-img="mark"></div></div></div>`)}
       ${sec('Boutique', '', `<div class="grid-2">${F('shopTitle', 'Titre sur l’accueil')}${F('shopBanner', 'Phrase en haut de la boutique')}</div>${F('shippingNote', 'Message livraison sur les fiches produit', { area: true })}`)}
-      ${sec('Dernier clip', 'Les clips se gèrent dans Musique & scène', F('clipTitle', 'Titre de la section') + '<label class="switch"><input type="checkbox" data-k="autoplayClip"> Lancer le premier clip avec le son dès l’arrivée sur l’accueil</label><span class="hint">Si le navigateur bloque le son, le clip démarre en muet et le son arrive au premier clic du visiteur.</span>')}
+      ${sec('Musique & clip', 'Les clips se gèrent dans Musique & scène', F('clipTitle', 'Titre de la section') + '<label class="switch"><input type="checkbox" data-k="autoplayClip"> Musique au démarrage sur l’accueil</label>' + F('introTrack', 'Morceau (lien ou ID YouTube)', { hint: 'Vide = le premier clip de la liste (Vanille Pistache). Si le navigateur bloque le son, la musique part au premier clic du visiteur.' }) + F('introTitle', 'Nom affiché sur le bouton vinyle'))}
       ${sec('Bio', 'Section « FUCSTYLE — L’Essence du Flow Brut »', `<div class="field"><span class="label">Photo</span><div data-img="bioPhoto"></div></div><div class="grid-2">${F('bioTitle', 'Titre')}${F('bioSubtitle', 'Sous-titre')}</div>${F('bioText', 'Texte', { area: true, tall: true })}${F('bioCta', 'Phrase réseaux')}${F('spotifyArtist', 'ID artiste Spotify', { hint: 'La fin du lien open.spotify.com/artist/…' })}`)}
       ${sec('Chiffres', '', `<div class="grid-2">${s.stats.map((st, i) => `<div class="grid-3" style="grid-template-columns:80px 70px 1fr;gap:8px"><div class="field"><label for="sv${i}">Nombre</label><input id="sv${i}" data-k="stats.${i}.value"></div><div class="field"><label for="ss${i}">Suffixe</label><input id="ss${i}" data-k="stats.${i}.suffix"></div><div class="field"><label for="sl${i}">Libellé</label><input id="sl${i}" data-k="stats.${i}.label"></div></div>`).join('')}</div>`)}
       ${sec('Rap indé', '', `${F('indeTitle', 'Titre')}${F('indeText', 'Texte', { area: true, tall: true })}${F('bercailUrl', 'Lien Bercail Records')}`)}
@@ -864,7 +864,7 @@
       </div><div class="savebar"><span class="note" data-dirty>À jour</span><button class="btn btn--primary" type="button" data-save>Enregistrer les pages</button></div>`;
     bindFields(c, s, mark);
     $$('[data-img]', c).forEach((el) => imgPicker(el, s[el.dataset.img], (u) => { s[el.dataset.img] = u; mark(); }));
-    $('[data-save]', c).addEventListener('click', () => { D.site = s; if (save('Pages du site enregistrées')) { dirty = false; $('[data-dirty]', c).textContent = 'À jour'; } });
+    $('[data-save]', c).addEventListener('click', () => { if (s.introTrack) { const m = String(s.introTrack).match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/); if (m) s.introTrack = m[1]; } D.site = s; if (save('Pages du site enregistrées')) { dirty = false; $('[data-dirty]', c).textContent = 'À jour'; } });
   };
 
   /* ================= MUSIQUE & SCÈNE ================= */
