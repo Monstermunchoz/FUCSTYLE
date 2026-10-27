@@ -146,10 +146,9 @@
     const out = S.stockState(p) === 'out';
     return `<a class="poster product-card${out ? ' is-out' : ''}" href="produit.html?p=${encodeURIComponent(p.slug)}">
       <span class="price-tag">${S.money(p.price).replace(/\s?€/, '€')}</span>
-      ${p.badge ? `<span class="badge">${esc(p.badge)}</span>` : ''}
       ${out ? '<span class="stamp">Rupture</span>' : ''}
       <img src="${esc(p.images[0])}" alt="${esc(p.name)}" loading="lazy">
-      <div class="meta"><h3>${esc(p.name)}</h3><div class="cat">${esc(p.type || p.category)}${p.preorder && !out ? ' — précommande' : ''}</div></div>
+      <div class="meta">${p.badge ? `<span class="badge">${esc(p.badge)}</span>` : ''}<h3>${esc(p.name)}</h3><div class="cat">${esc(p.type || p.category)}${p.preorder && !out ? ' — précommande' : ''}</div></div>
     </a>`;
   }
   function storyCard(a, cls) {

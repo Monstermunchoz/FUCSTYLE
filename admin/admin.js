@@ -544,8 +544,8 @@
       const img = p.images[0] || '';
       const stock = S.stockOf(p), out = stock <= 0 && !p.preorder;
       const card = `<div class="products" style="grid-template-columns:minmax(0,320px);justify-content:center;padding:40px 20px"><a class="poster product-card${stock <= 0 ? ' is-out' : ''}" href="#" style="--r:-1deg">
-          <span class="price-tag">${money(p.price).replace(/\s?€/, '€')}</span>${p.badge ? `<span class="badge">${esc(p.badge)}</span>` : ''}${stock <= 0 ? '<span class="stamp">Rupture</span>' : ''}
-          ${img ? `<img src="${esc(img)}" alt="">` : '<div style="aspect-ratio:1;background:#ebe8e1"></div>'}<div class="meta"><h3>${esc(p.name || 'Nom du produit')}</h3><div class="cat">${esc(p.type || p.category)}${p.preorder ? ' — précommande' : ''}</div></div></a></div>`;
+          <span class="price-tag">${money(p.price).replace(/\s?€/, '€')}</span>${stock <= 0 ? '<span class="stamp">Rupture</span>' : ''}
+          ${img ? `<img src="${esc(img)}" alt="">` : '<div style="aspect-ratio:1;background:#ebe8e1"></div>'}<div class="meta">${p.badge ? `<span class="badge">${esc(p.badge)}</span>` : ''}<h3>${esc(p.name || 'Nom du produit')}</h3><div class="cat">${esc(p.type || p.category)}${p.preorder ? ' — précommande' : ''}</div></div></a></div>`;
       const page = `<section class="section" style="padding:40px 0"><div class="wrap"><div class="pdp">
           <div class="pdp-gallery"><div class="poster" style="--r:-.8deg">${img ? `<img src="${esc(img)}" alt="">` : '<div style="aspect-ratio:1;background:#ebe8e1"></div>'}</div>
             ${p.images.length > 1 ? `<div class="thumbs">${p.images.map((u, i) => `<button aria-current="${i === 0}"><img src="${esc(u)}" alt=""></button>`).join('')}</div>` : ''}</div>

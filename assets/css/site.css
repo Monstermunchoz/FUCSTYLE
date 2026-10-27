@@ -709,3 +709,8 @@ svg.drop { display: inline-block; width: .62em; height: .78em; vertical-align: -
   .music-btn button { width: 48px; height: 48px; padding: 0; justify-content: center; border-radius: 50%; transform: none; }
   .music-btn .vinyl { width: 40px; height: 40px; }
 }
+
+/* Étiquette (Album, Série limitée…) sous la photo : ne cache plus le prix */
+.product-card .meta .badge { position: static; display: inline-block; margin: 0 0 8px; transform: rotate(-2deg); background: var(--ink); color: var(--white); padding: 3px 8px; font-size: .78rem; font-weight: 700; }
+.price-tag { right: -8px; max-width: calc(100% - 4px); white-space: nowrap; }
+@media (max-width: 720px) { .price-tag { font-size: 1.35rem; padding: 5px 9px 3px; top: 14px; } }
