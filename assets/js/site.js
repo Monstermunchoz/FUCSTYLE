@@ -48,7 +48,8 @@
     footer.className = 'site-footer';
     footer.innerHTML = `<div class="wrap">
       <div class="footer-top">
-        <div><img src="${esc(site.logo)}" alt="Fucstyle"><p>Rappeur lyonnais, membre du SnakeS Crew, cofondateur de Bercail Records. Freestyle tous les dimanches.</p>${socialsHTML()}</div>
+        <div><img src="${esc(site.logo)}" alt="Fucstyle"><p>Rappeur lyonnais, membre du SnakeS Crew, cofondateur de Bercail Records. Freestyle tous les dimanches.</p>${socialsHTML()}
+          <form class="news-form" data-news novalidate><label class="sr-only" for="news-mail">Ton email</label><input id="news-mail" type="email" placeholder="Ton email pour les drops et les dates" autocomplete="email"><button type="submit">Rejoindre</button></form><div data-news-msg></div></div>
         <div><h3>Le site</h3><ul class="footer-links">
           <li><a href="boutique.html">Shop</a></li><li><a href="clips.html">Les derniers clips</a></li><li><a href="magazine.html">Magazine</a></li>
           <li><a href="a-propos.html">À propos</a></li><li><a href="contact.html">Contact & booking</a></li></ul></div>
@@ -61,6 +62,25 @@
       <div class="footer-bottom"><span>© ${new Date().getFullYear()} FUCSTYLE. Tous droits réservés.</span><a href="${esc(site.creditUrl)}" target="_blank" rel="noopener">${esc(site.credit)}</a></div>
     </div>`;
     document.body.append(footer);
+    $('[data-news]', footer).addEventListener('submit', (e) => {
+      e.preventDefault();
+      const mail = $('#news-mail', footer).value.trim().toLowerCase(), out = $('[data-news-msg]', footer);
+      if (!/^\S+@\S+\.\S+$/.test(mail)) { out.innerHTML = '<p class="news-ok">Entre un email valide.</p>'; return; }
+      D.subscribers = D.subscribers || [];
+      if (!D.subscribers.some((s) => s.email === mail)) { D.subscribers.unshift({ email: mail, date: new Date().toISOString() }); S.save(D); }
+      out.innerHTML = '<p class="news-ok">Bienvenue dans la team 🩸 Tu seras prévenu en premier.</p>'; e.target.reset();
+    });
+
+    const an = site.announcement;
+    if (an && an.active && an.text) {
+      let seen = ''; try { seen = sessionStorage.getItem('fucstyle:announce'); } catch (e) {}
+      if (seen !== an.text) {
+        const bar = document.createElement('div'); bar.className = 'announce'; bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', 'Annonce');
+        bar.innerHTML = (an.url ? `<a href="${esc(an.url)}">${esc(an.text)}</a>` : esc(an.text)) + '<button type="button" aria-label="Fermer l’annonce">×</button>';
+        $('button', bar).addEventListener('click', () => { bar.remove(); try { sessionStorage.setItem('fucstyle:announce', an.text); } catch (e) {} });
+        document.body.prepend(bar);
+      }
+    }
 
     // panier
     const bd = document.createElement('div'); bd.className = 'drawer-backdrop';
@@ -133,6 +153,15 @@
       <div class="img"><img src="${esc(a.cover)}" alt="" loading="lazy"></div>
       <div><span class="kicker">${esc(a.category)}</span><h3>${esc(a.title)}</h3>${cls === 'story--big' || cls === 'story--list' ? `<p>${esc(a.excerpt)}</p>` : ''}<span class="date">${S.date(a.date)}</span></div>
     </a>`;
+  }
+  /* SEO : balises meta + données structurées */
+  function setMeta(title, desc, image, ld) {
+    if (title) document.title = title;
+    const put = (attr, key, val) => { if (!val) return; let m = document.head.querySelector(`meta[${attr}="${key}"]`); if (!m) { m = document.createElement('meta'); m.setAttribute(attr, key); document.head.append(m); } m.setAttribute('content', val); };
+    put('name', 'description', desc); put('property', 'og:title', title); put('property', 'og:description', desc);
+    if (image && !/^data:/.test(image)) put('property', 'og:image', image);
+    put('name', 'twitter:card', 'summary_large_image');
+    if (ld) { const s = document.createElement('script'); s.type = 'application/ld+json'; s.textContent = JSON.stringify(ld); document.head.append(s); }
   }
   const posts = () => D.posts.filter((p) => p.status === 'publie').sort((a, b) => b.date.localeCompare(a.date));
 
@@ -330,7 +359,11 @@
       const p = D.products.find((x) => x.slug === slug && x.status !== 'brouillon');
       const root = $('[data-pdp]');
       if (!p) { root.innerHTML = `<div class="empty"><p class="display">Article introuvable</p><p>Il a peut-être été retiré de la boutique.</p><a class="btn btn--ink" href="boutique.html">Retour à la boutique</a></div>`; return; }
-      document.title = p.name + ' — Fucstyle';
+      setMeta(p.seoTitle || (p.name + ' — Boutique Fucstyle'), p.seoDesc || p.short, p.images[0], {
+        '@context': 'https://schema.org', '@type': 'Product', name: p.name, description: p.seoDesc || p.short, sku: p.sku,
+        image: p.images.filter((u) => !/^data:/.test(u)), brand: { '@type': 'Brand', name: 'Fucstyle' },
+        offers: { '@type': 'Offer', priceCurrency: 'EUR', price: p.price, availability: 'https://schema.org/' + (S.stockOf(p) > 0 ? 'InStock' : p.preorder ? 'PreOrder' : 'OutOfStock') }
+      });
       let img = 0, size = '', color = '';
       const hasV = p.variants.length > 0;
       const variantFor = () => p.variants.find((v) => (v.size || '') === (p.sizes.length ? size : '') && (v.color || '') === (p.colors.length ? color : ''));
@@ -417,7 +450,11 @@
       const a = D.posts.find((x) => x.slug === slug && x.status === 'publie');
       const root = $('[data-article]');
       if (!a) { root.innerHTML = `<section class="section"><div class="wrap empty"><p class="display">Article introuvable</p><a class="btn btn--ink" href="magazine.html">Retour au magazine</a></div></section>`; return; }
-      document.title = a.title + ' — Magazine Fucstyle';
+      setMeta(a.seoTitle || (a.title + ' — Magazine Fucstyle'), a.seoDesc || a.excerpt, a.cover, {
+        '@context': 'https://schema.org', '@type': 'NewsArticle', headline: a.title, description: a.seoDesc || a.excerpt,
+        image: /^data:/.test(a.cover) ? undefined : a.cover, datePublished: a.date, keywords: [a.keyword].concat(a.tags || []).filter(Boolean).join(', '),
+        author: { '@type': 'Organization', name: 'Fucstyle' }, publisher: { '@type': 'Organization', name: 'Fucstyle', logo: { '@type': 'ImageObject', url: site.logo } }
+      });
       const others = posts().filter((x) => x.id !== a.id).slice(0, 3);
       root.innerHTML = `<header class="article-hero"><div class="wrap">
           <p style="margin:0 0 16px"><a href="magazine.html?cat=${encodeURIComponent(a.category)}" class="kicker" style="background:var(--blood);color:#fff;padding:4px 10px;text-decoration:none;font-weight:700">${esc(a.category)}</a></p>

@@ -36,6 +36,7 @@
     print: 'M6 9V3h12v6M6 18H4v-7h16v7h-2M7 14h10v7H7z',
     download: 'M12 4v12M7 11l5 5 5-5M4 20h16',
     eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z',
+    bell: 'M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0',
     music: 'M9 18V5l12-2v13M9 18a3 3 0 11-6 0 3 3 0 016 0zM21 16a3 3 0 11-6 0 3 3 0 016 0z'
   };
   const I = (n) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${P[n]}"/></svg>`;
@@ -146,7 +147,7 @@
   /* ---------- squelette ---------- */
   const NAV = [
     ['Pilotage', [['#/', 'Vue d’ensemble', 'home']]],
-    ['Boutique', [['#/produits', 'Produits', 'box'], ['#/stock', 'Stock', 'layers'], ['#/commandes', 'Commandes', 'cart', () => D.orders.filter((o) => o.status === 'payee').length], ['#/clients', 'Clients', 'users'], ['#/promos', 'Codes promo', 'tag']]],
+    ['Boutique', [['#/produits', 'Produits', 'box'], ['#/stock', 'Stock', 'layers'], ['#/commandes', 'Commandes', 'cart', () => D.orders.filter((o) => o.status === 'payee').length], ['#/clients', 'Clients', 'users'], ['#/notifications', 'Notifications', 'bell'], ['#/promos', 'Codes promo', 'tag']]],
     ['Contenu', [['#/magazine', 'Magazine', 'pen'], ['#/site', 'Pages du site', 'layout'], ['#/musique', 'Musique & scène', 'music'], ['#/messages', 'Messages', 'mail', () => D.messages.filter((m) => !m.read).length]]],
     ['Compte', [['#/reglages', 'Réglages', 'gear']]]
   ];
@@ -670,16 +671,17 @@
       m.orders++; if (countable(o)) m.spent += o.total; if (o.date > m.last) m.last = o.date;
     });
     const list = Object.values(map).sort((a, b) => b.spent - a.spent);
-    c.innerHTML = head('Clients', list.length + ' clients ont commandé', `<button class="btn" type="button" data-exp>${I('download')} Exporter (CSV)</button>`)
+    c.innerHTML = head('Clients', list.length + ' clients ont commandé', `<button class="btn" type="button" data-exp>${I('download')} Exporter (CSV)</button><button class="btn btn--primary" type="button" data-notifall>${I('bell')} Notifier tous les membres</button>`)
       + `<section class="panel"><div class="toolbar"><input class="input" type="search" placeholder="Nom, email ou ville" data-q aria-label="Rechercher"></div><div class="table-wrap" data-list></div></section>`;
     const draw = (q) => {
       const l = list.filter((x) => !q || (x.name + ' ' + x.email + ' ' + x.city).toLowerCase().includes(q));
-      $('[data-list]', c).innerHTML = l.length ? `<table class="t"><thead><tr><th>Client</th><th>Ville</th><th class="num">Commandes</th><th class="num">Total dépensé</th><th>Dernière commande</th></tr></thead><tbody>
-        ${l.map((x) => `<tr data-mail="${esc(x.email)}"><td><b>${esc(x.name)}</b><br><small style="color:var(--muted)">${esc(x.email)}</small></td><td>${esc(x.city)}</td><td class="num">${x.orders}</td><td class="num"><b>${money(x.spent)}</b></td><td>${fmtDate(x.last)}</td></tr>`).join('')}</tbody></table>`
+      $('[data-list]', c).innerHTML = l.length ? `<table class="t"><thead><tr><th>Client</th><th>Ville</th><th class="num">Commandes</th><th class="num">Total dépensé</th><th>Dernière commande</th><th></th></tr></thead><tbody>
+        ${l.map((x) => `<tr data-mail="${esc(x.email)}"><td><b>${esc(x.name)}</b><br><small style="color:var(--muted)">${esc(x.email)}</small></td><td>${esc(x.city)}</td><td class="num">${x.orders}</td><td class="num"><b>${money(x.spent)}</b></td><td>${fmtDate(x.last)}</td><td class="num"><button class="btn btn--sm" type="button" data-notif="${esc(x.email)}">${I('bell')} Notifier</button></td></tr>`).join('')}</tbody></table>`
         : '<div class="empty-state"><b>Aucun client</b>Les clients apparaissent dès leur première commande.</div>';
     };
     $('[data-q]', c).addEventListener('input', (e) => draw(e.target.value.toLowerCase()));
-    c.addEventListener('click', (e) => { const r = e.target.closest('tr[data-mail]'); if (r) location.hash = '#/recherche/' + encodeURIComponent(r.dataset.mail); });
+    c.addEventListener('click', (e) => { const n = e.target.closest('[data-notif]'); if (n) { e.stopPropagation(); return composer({ email: n.dataset.notif }); } const r = e.target.closest('tr[data-mail]'); if (r) location.hash = '#/recherche/' + encodeURIComponent(r.dataset.mail); });
+    $('[data-notifall]', c).addEventListener('click', () => composer());
     $('[data-exp]', c).addEventListener('click', () => download('clients-fucstyle.csv', csv([['Nom', 'Email', 'Téléphone', 'Ville', 'Commandes', 'Total']].concat(list.map((x) => [x.name, x.email, x.phone, x.city, x.orders, x.spent.toFixed(2)]))), 'text/csv'));
     draw('');
   };
@@ -741,7 +743,7 @@
           <div class="field"><label for="ae">Chapô</label><textarea id="ae" data-k="excerpt" style="min-height:70px" placeholder="Le résumé affiché dans la liste et en haut de l’article"></textarea></div>
           <div class="field"><span class="label">Texte</span>
             <div class="seg" role="tablist" style="margin-bottom:8px;width:max-content"><button type="button" data-tab="w" aria-pressed="true">Écrire</button><button type="button" data-tab="p">Aperçu</button></div>
-            <div data-w><div class="md-tools"><button type="button" data-md="## " title="Intertitre">Titre</button><button type="button" data-md="**" title="Gras">G</button><button type="button" data-md="*" title="Italique"><em>I</em></button><button type="button" data-md="- " title="Liste">• Liste</button><button type="button" data-md="> " title="Citation">“ Citation</button><button type="button" data-md="link" title="Lien">Lien</button></div>
+            <div data-w><div class="md-tools"><button type="button" data-md="## " title="Intertitre">Titre</button><button type="button" data-md="**" title="Gras">G</button><button type="button" data-md="*" title="Italique"><em>I</em></button><button type="button" data-md="- " title="Liste">• Liste</button><button type="button" data-md="> " title="Citation">“ Citation</button><button type="button" data-md="link" title="Lien">Lien</button><label class="btn btn--sm btn--ghost" style="height:32px;font-weight:700" title="Insérer une photo">Photo<input type="file" accept="image/*" hidden data-mdimg></label><button type="button" data-plan title="Insérer un plan d’article optimisé">Plan SEO</button></div>
             <textarea class="md-area" data-k="body" aria-label="Texte de l’article"></textarea>
             <span class="hint">## pour un intertitre, **gras**, *italique*, - pour une liste, [texte](https://lien) pour un lien.</span></div>
             <div data-p hidden class="preview panel" style="padding:24px"></div></div>
@@ -753,6 +755,13 @@
           <div class="field"><label for="ac">Rubrique</label><input id="ac" data-k="category" list="pcats"><datalist id="pcats">${cats.map((x) => `<option value="${esc(x)}">`).join('')}</datalist></div>
           <div class="field"><label for="aslug">Adresse de la page</label><input id="aslug" data-k="slug"></div>
         </div></section>
+        <section class="panel"><div class="panel-head"><div><h2>Référencement Google</h2><p data-seoscore></p></div></div><div class="panel-body stack">
+          <div class="field"><label for="akw">Mot-clé principal</label><input id="akw" data-k="keyword" placeholder="Ex. rappeur lyonnais, album 69100"></div>
+          <div class="field"><label for="aseot">Titre Google</label><input id="aseot" data-k="seoTitle" placeholder="Laisse vide pour reprendre le titre"></div>
+          <div class="field"><label for="aseod">Description Google</label><textarea id="aseod" data-k="seoDesc" style="min-height:80px" placeholder="Laisse vide pour reprendre le chapô"></textarea></div>
+          <div class="serp" data-serp></div>
+          <ul class="seo-checks" data-checks></ul>
+        </div></section>
         <section class="panel"><div class="panel-head"><h2>Image de couverture</h2></div><div class="panel-body" data-cover></div></section>
         <section class="panel"><div class="panel-head"><div><h2>Source presse</h2><p>Facultatif : le média d’origine</p></div></div><div class="panel-body stack">
           <div class="field"><label for="asn">Média</label><input id="asn" data-k="source.name" placeholder="Le Progrès, Paperboys…"></div>
@@ -762,8 +771,49 @@
       <div class="savebar"><span class="note" data-dirty>${isNew ? 'Nouvel article' : 'À jour'}</span>${isNew ? '' : `<button class="btn btn--danger" type="button" data-delete>${I('trash')} Supprimer</button>`}
         <button class="btn" type="button" data-draft>Enregistrer en brouillon</button><button class="btn btn--primary" type="button" data-pub>Publier</button></div>`;
     bindFields(c, a, (k, v) => { mark(); if (k === 'title' && (isNew || !a.slug)) { a.slug = S.slugify(v); $('#aslug').value = a.slug; } });
-    imgPicker($('[data-cover]', c), a.cover, (u) => { a.cover = u; mark(); });
+    imgPicker($('[data-cover]', c), a.cover, (u) => { a.cover = u; mark(); seo(); });
     const ta = $('.md-area', c);
+
+    /* score SEO en direct */
+    const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const seo = () => {
+      const kw = norm(a.keyword).trim();
+      const title = a.seoTitle || a.title || '', desc = a.seoDesc || a.excerpt || '';
+      const words = (a.body || '').replace(/[#*>\-\[\]()!]/g, ' ').split(/\s+/).filter(Boolean).length;
+      const checks = [
+        [!!kw, 'Un mot-clé principal est choisi'],
+        [kw && norm(title).includes(kw), 'Le mot-clé est dans le titre'],
+        [kw && norm(desc).includes(kw), 'Le mot-clé est dans la description'],
+        [kw && norm((a.body || '').split('\n').slice(0, 4).join(' ')).includes(kw), 'Le mot-clé apparaît dès le début du texte'],
+        [title.length >= 30 && title.length <= 62, `Titre entre 30 et 62 caractères (${title.length})`],
+        [desc.length >= 110 && desc.length <= 160, `Description entre 110 et 160 caractères (${desc.length})`],
+        [words >= 300, `Au moins 300 mots (${words})`],
+        [/^## /m.test(a.body || ''), 'Au moins un intertitre (##)'],
+        [/!\[/.test(a.body || '') || !!a.cover, 'Une image illustre l’article'],
+        [/\]\((?!https?:\/\/(?!fucstyle))/.test(a.body || '') || /\.html/.test(a.body || ''), 'Un lien vers une autre page du site (boutique, clips…)'],
+        [!!(a.source && a.source.url) || /\]\(https?:\/\//.test(a.body || ''), 'Un lien vers une source ou un réseau']
+      ];
+      const ok = checks.filter((x) => x[0]).length, score = Math.round(ok / checks.length * 100);
+      $('[data-seoscore]', c).innerHTML = `Score SEO : <b style="color:${score >= 80 ? 'var(--good)' : score >= 50 ? 'var(--warn)' : 'var(--blood)'}">${score} / 100</b>`;
+      $('[data-checks]', c).innerHTML = checks.map(([v, l]) => `<li class="${v ? 'ok' : ''}">${esc(l)}</li>`).join('');
+      $('[data-serp]', c).innerHTML = `<small>fucstyle.fr › magazine › ${esc(a.slug || 'mon-article')}</small><b>${esc(title || 'Titre de l’article')}</b><p>${esc(desc || 'Description affichée dans Google.')}</p>`;
+    };
+    c.addEventListener('input', seo); seo();
+
+    $('[data-mdimg]', c).addEventListener('change', async (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      try {
+        const u = await readImage(f, 1400); const cap = prompt('Légende de la photo (utile pour Google)', '') || '';
+        const s0 = ta.selectionStart; ta.setRangeText(`\n\n![${cap}](${u})\n\n`, s0, s0, 'end'); a.body = ta.value; mark(); seo();
+      } catch (err) { toast(err.message, true); }
+      e.target.value = '';
+    });
+    $('[data-plan]', c).addEventListener('click', () => {
+      const kw = a.keyword || 'Fucstyle';
+      const plan = `Accroche en deux phrases : ce qui se passe, pourquoi ça compte pour le 69100. Place « ${kw} » dès ici.\n\n## Le contexte\n\nOù, quand, avec qui. Les faits, simplement.\n\n## Ce qu’il faut retenir\n\n- Point fort numéro un\n- Point fort numéro deux\n- Point fort numéro trois\n\n## Le mot de Jeff\n\n> Une phrase forte, une punchline.\n\n## Et maintenant ?\n\nLa suite : prochaine date, prochain clip, prochain drop. Renvoie vers la [boutique](boutique.html) ou les [clips](clips.html).`;
+      if (a.body && !confirm('Ajouter le plan à la fin du texte actuel ?')) return;
+      ta.value = (a.body ? a.body + '\n\n' : '') + plan; a.body = ta.value; mark(); seo();
+    });
     $$('[data-md]', c).forEach((b) => b.addEventListener('click', () => {
       const m = b.dataset.md, s = ta.selectionStart, e = ta.selectionEnd, sel = ta.value.slice(s, e);
       let ins;
@@ -915,6 +965,113 @@
         <section class="panel"><div class="panel-head"><h2>Commandes (${or.length})</h2></div><div class="table-wrap">${or.length ? ordersTable(or) : ''}</div></section>
         <section class="panel"><div class="panel-head"><h2>Articles (${po.length})</h2></div>${po.length ? `<div class="table-wrap"><table class="t"><tbody>${po.map((a) => `<tr onclick="location.hash='#/magazine/${a.id}'"><td><b>${esc(a.title)}</b></td><td>${fmtDate(a.date)}</td></tr>`).join('')}</tbody></table></div>` : ''}</section></div>`;
     bindOrderRows(c);
+  };
+
+  /* ================= NOTIFICATIONS & MEMBRES ================= */
+  function members() {
+    const map = {};
+    D.orders.forEach((o) => {
+      const k = o.customer.email.toLowerCase();
+      const m = map[k] = map[k] || { email: k, first: o.customer.first, name: o.customer.first + ' ' + o.customer.last, client: true, sub: false, last: o.date, products: new Set() };
+      if (o.date > m.last) m.last = o.date; o.items.forEach((i) => m.products.add(i.productId));
+    });
+    (D.subscribers || []).forEach((s) => { const k = s.email.toLowerCase(); map[k] = map[k] || { email: k, first: '', name: k, client: false, sub: false, last: null, products: new Set() }; map[k].sub = true; });
+    return Object.values(map);
+  }
+  function composer(preset) {
+    preset = preset || {};
+    const all = members();
+    const dlg = document.createElement('dialog'); dlg.className = 'confirm'; dlg.style.width = 'min(640px, calc(100vw - 32px))';
+    dlg.innerHTML = `<h3 style="font-family:var(--f-display);font-weight:900;text-transform:uppercase;font-size:2rem">Envoyer une notification</h3>
+      <form class="stack" data-f style="gap:14px">
+        <div class="field"><label for="na">Destinataires</label><select id="na" name="aud">
+          <option value="all">Tous les membres (clients + inscrits)</option><option value="clients">Clients ayant commandé</option><option value="subs">Inscrits à la newsletter</option>
+          <option value="inactive">Clients sans commande depuis 60 jours</option><option value="product">Acheteurs d’un produit…</option><option value="one">Un membre…</option></select></div>
+        <div class="field" data-prodwrap hidden><label for="np">Produit</label><select id="np" name="product">${D.products.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div>
+        <div class="field" data-onewrap hidden><label for="no">Membre</label><select id="no" name="one">${all.map((m) => `<option value="${esc(m.email)}">${esc(m.name)}${m.name !== m.email ? ' — ' + esc(m.email) : ''}</option>`).join('')}</select></div>
+        <p class="hint" data-count style="margin:0"></p>
+        <div class="field"><label for="ns">Objet</label><input id="ns" name="subject" placeholder="Ex. Nouveau drop : le hoodie 69💯 Le🩸 est dispo" required></div>
+        <div class="field"><label for="nb">Message</label><textarea id="nb" name="body" style="min-height:150px" placeholder="Salut {prenom}, …"></textarea><span class="hint">{prenom} est remplacé par le prénom du membre quand il est connu.</span></div>
+        <div class="field"><span class="label">Modèles</span><div class="chipset">
+          <button type="button" data-tpl="drop">Nouveau drop</button><button type="button" data-tpl="date">Nouvelle date</button><button type="button" data-tpl="clip">Nouveau clip</button><button type="button" data-tpl="relance">Relance panier</button></div></div>
+        <label class="switch"><input type="checkbox" name="banner"> Afficher aussi en bandeau rouge sur le site</label>
+        <div class="field" data-urlwrap hidden><label for="nu">Lien du bandeau</label><input id="nu" name="url" placeholder="boutique.html ou https://…"></div>
+        <div class="actions"><button class="btn" type="button" data-cancel>Annuler</button><button class="btn" type="button" data-copy>Copier les adresses</button><button class="btn btn--blood" type="submit">Envoyer par email</button></div>
+      </form>`;
+    document.body.append(dlg); dlg.showModal();
+    const f = $('[data-f]', dlg);
+    const TPL = {
+      drop: ['Nouveau drop dispo sur la boutique 🩸', 'Salut {prenom},\n\nLe nouveau merch vient de tomber sur fucstyle.fr. Les quantités sont limitées, sois là avant que ça parte.\n\nMerci pour la force,\nJeff'],
+      date: ['On se voit sur scène ?', 'Salut {prenom},\n\nNouvelle date annoncée. Toutes les infos et les billets sont sur fucstyle.fr, rubrique À propos.\n\nJeff'],
+      clip: ['Nouveau clip en ligne', 'Salut {prenom},\n\nLe nouveau clip est sorti. Va le voir, like et partage, c’est ce qui fait avancer l’indé.\n\nJeff'],
+      relance: ['Ton panier t’attend', 'Salut {prenom},\n\nTu as laissé des articles sur la boutique. Ils sont encore dispo pour l’instant, mais pas pour longtemps.\n\nJeff']
+    };
+    const target = () => {
+      const fd = Object.fromEntries(new FormData(f)); const now = Date.now();
+      let l = all;
+      if (fd.aud === 'clients') l = all.filter((m) => m.client);
+      if (fd.aud === 'subs') l = all.filter((m) => m.sub);
+      if (fd.aud === 'inactive') l = all.filter((m) => m.client && now - +new Date(m.last) > 60 * 86400000);
+      if (fd.aud === 'product') l = all.filter((m) => m.products.has(fd.product));
+      if (fd.aud === 'one') l = all.filter((m) => m.email === fd.one);
+      return { l, fd, label: $('#na', dlg).selectedOptions[0].textContent + (fd.aud === 'product' ? ' : ' + $('#np', dlg).selectedOptions[0].textContent : fd.aud === 'one' ? ' : ' + fd.one : '') };
+    };
+    const refresh = () => {
+      const aud = $('#na', dlg).value;
+      $('[data-prodwrap]', dlg).hidden = aud !== 'product'; $('[data-onewrap]', dlg).hidden = aud !== 'one';
+      $('[data-urlwrap]', dlg).hidden = !f.banner.checked;
+      const n = target().l.length; $('[data-count]', dlg).textContent = n + ' destinataire' + (n > 1 ? 's' : '') + (D.orders.some((o) => o.demo) ? ' (dont des clients d’exemple)' : '');
+    };
+    f.addEventListener('change', refresh);
+    if (preset.email) { $('#na', dlg).value = 'one'; $('#no', dlg).value = preset.email; }
+    refresh();
+    $$('[data-tpl]', dlg).forEach((b) => b.addEventListener('click', () => { const t = TPL[b.dataset.tpl]; f.subject.value = t[0]; f.body.value = t[1]; }));
+    $('[data-cancel]', dlg).addEventListener('click', () => { dlg.close(); dlg.remove(); });
+    $('[data-copy]', dlg).addEventListener('click', async () => { const mails = target().l.map((m) => m.email).join(', '); try { await navigator.clipboard.writeText(mails); toast('Adresses copiées'); } catch (e) { prompt('Copie les adresses :', mails); } });
+    f.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const { l, fd, label } = target();
+      if (!fd.subject.trim()) return toast('Ajoute un objet.', true);
+      if (!l.length && !fd.banner) return toast('Aucun destinataire pour cette sélection.', true);
+      if (fd.banner) { D.site.announcement = { text: fd.subject.trim(), url: (fd.url || '').trim(), active: true, date: new Date().toISOString() }; }
+      D.notifications = D.notifications || [];
+      D.notifications.unshift({ id: S.uid('n'), date: new Date().toISOString(), audience: label, count: l.length, subject: fd.subject.trim(), body: fd.body, banner: !!fd.banner });
+      save(fd.banner ? 'Bandeau publié sur le site' : 'Notification enregistrée');
+      if (l.length) {
+        const body = l.length === 1 ? fd.body.replace(/\{prenom\}/g, l[0].first || '') : fd.body.replace(/\{prenom\}\s*,?/g, '');
+        const to = l.length === 1 ? l[0].email : D.site.email;
+        const bcc = l.length > 1 ? '&bcc=' + encodeURIComponent(l.map((m) => m.email).join(',')) : '';
+        const url = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(fd.subject)}&body=${encodeURIComponent(body)}${bcc}`;
+        if (url.length > 1900) toast('Trop d’adresses pour un seul email : les adresses sont copiées, colle-les en copie cachée (Cci).');
+        if (url.length > 1900) { navigator.clipboard && navigator.clipboard.writeText(l.map((m) => m.email).join(', ')); location.href = `mailto:?bcc=&subject=${encodeURIComponent(fd.subject)}&body=${encodeURIComponent(body)}`; }
+        else location.href = url;
+      }
+      dlg.close(); dlg.remove(); if (current === 'notifications') route();
+    });
+  }
+
+  views.notifications = (c) => {
+    const all = members(); const an = D.site.announcement;
+    const subs = D.subscribers || [];
+    c.innerHTML = head('Notifications', 'Préviens ta communauté : nouveau drop, nouvelle date, nouveau clip.', `<button class="btn btn--primary" type="button" data-new>${I('mail')} Nouvelle notification</button>`)
+      + `<div class="kpis" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><div class="l">Membres</div><div class="v">${all.length}</div><div class="d">clients et inscrits</div></div>
+        <div class="kpi"><div class="l">Inscrits newsletter</div><div class="v">${subs.length}</div><div class="d">via le pied de page du site</div></div>
+        <div class="kpi"><div class="l">Notifications envoyées</div><div class="v">${(D.notifications || []).length}</div><div class="d">depuis le début</div></div></div>
+      <div class="cols"><div class="stack">
+        <section class="panel"><div class="panel-head"><h2>Historique</h2></div>${(D.notifications || []).length ? `<div class="table-wrap"><table class="t"><thead><tr><th>Date</th><th>Objet</th><th>Destinataires</th><th class="num">Nb</th></tr></thead><tbody>
+          ${D.notifications.map((n) => `<tr style="cursor:default"><td>${fmtDT(n.date)}</td><td><b>${esc(n.subject)}</b>${n.banner ? ' <span class="tag">bandeau</span>' : ''}</td><td>${esc(n.audience)}</td><td class="num">${n.count}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty-state"><b>Aucune notification</b>Envoie la première pour annoncer un drop ou une date.</div>'}</section>
+        <section class="panel"><div class="panel-head"><h2>Inscrits newsletter</h2>${subs.length ? `<button class="btn btn--sm" type="button" data-expsubs>${I('download')} Exporter</button>` : ''}</div>${subs.length ? `<div class="table-wrap"><table class="t"><tbody>${subs.map((s, i) => `<tr style="cursor:default"><td>${esc(s.email)}</td><td>${fmtDate(s.date)}</td><td class="num"><button class="btn btn--sm btn--ghost" data-notify="${esc(s.email)}">${I('mail')}</button><button class="btn btn--sm btn--ghost btn--danger" data-unsub="${i}" aria-label="Retirer">${I('trash')}</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty-state"><b>Pas encore d’inscrits</b>Le formulaire est dans le pied de page de chaque page du site.</div>'}</section>
+      </div><div class="stack">
+        <section class="panel"><div class="panel-head"><div><h2>Bandeau sur le site</h2><p>Message rouge tout en haut du site</p></div></div><div class="panel-body stack">
+          ${an && an.text ? `<div class="announce-prev">${esc(an.text)}</div><label class="switch"><input type="checkbox" data-anon${an.active ? ' checked' : ''}> Bandeau affiché</label>` : '<p class="hint" style="margin:0">Aucun bandeau. Coche « Afficher aussi en bandeau » en envoyant une notification.</p>'}
+        </div></section>
+        <div class="alert alert--info">${I('alert')}<div>L’envoi passe par ta messagerie (Gmail, Outlook…), en copie cachée. Pour des envois automatiques en masse, on branchera un service d’emailing (Brevo, Mailchimp) à la mise en ligne.</div></div>
+      </div></div>`;
+    $('[data-new]', c).addEventListener('click', () => composer());
+    const anon = $('[data-anon]', c); if (anon) anon.addEventListener('change', () => { D.site.announcement.active = anon.checked; save(anon.checked ? 'Bandeau affiché' : 'Bandeau masqué'); });
+    $$('[data-notify]', c).forEach((b) => b.addEventListener('click', () => composer({ email: b.dataset.notify })));
+    $$('[data-unsub]', c).forEach((b) => b.addEventListener('click', async () => { if (await confirmBox('Retirer cet inscrit ?', 'Il ne recevra plus les notifications.', 'Retirer')) { D.subscribers.splice(+b.dataset.unsub, 1); save('Inscrit retiré'); route(); } }));
+    const ex = $('[data-expsubs]', c); if (ex) ex.addEventListener('click', () => download('inscrits-fucstyle.csv', csv([['Email', 'Date']].concat(subs.map((s) => [s.email, fmtDate(s.date)]))), 'text/csv'));
   };
 
   /* ================= RÉGLAGES ================= */

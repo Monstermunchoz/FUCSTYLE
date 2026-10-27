@@ -337,3 +337,18 @@ dialog.pmodal::backdrop { background: rgba(0,0,0,.6); }
   .pm-preview { border-left: 0; border-top: 1px solid var(--line); min-height: 640px; }
   .pm-foot { flex-wrap: wrap; } .pm-foot .note { width: 100%; }
 }
+.seo-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13.5px; }
+.seo-checks li { display: flex; gap: 8px; align-items: flex-start; color: var(--muted); }
+.seo-checks li::before { content: '○'; color: var(--blood); font-weight: 700; flex: none; }
+.seo-checks li.ok { color: var(--text); }
+.seo-checks li.ok::before { content: '✓'; color: var(--good); }
+.preview img { max-width: 100%; height: auto; border-radius: 4px; }
+.preview figure { margin: 1.4em 0; } .preview figcaption { color: var(--muted); font-size: 13px; }
+.announce-prev { background: var(--blood); color: #fff; font-weight: 700; padding: 10px 14px; border-radius: 6px; text-align: center; }
+@media (max-width: 720px) {
+  .page-title { flex-direction: column; align-items: center; text-align: center; }
+  .page-title .actions { justify-content: center; }
+  .kpi { text-align: center; }
+  .login-box { text-align: center; } .login-box img { margin-left: auto; margin-right: auto; }
+  .empty-state { text-align: center; }
+}

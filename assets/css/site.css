@@ -543,3 +543,60 @@ dialog.modal::backdrop { background: rgba(0,0,0,.7); }
 .news-form input:focus { outline: none; border-color: var(--white); }
 .news-form button { min-height: 46px; padding: 0 16px; border: 2px solid var(--blood); background: var(--blood); color: var(--white); font-weight: 700; cursor: pointer; }
 .news-ok { color: #ff8a97; font-weight: 600; margin-top: 8px; }
+
+/* ---------- Mobile : tout centré ---------- */
+@media (max-width: 720px) {
+  .hero { align-items: center; text-align: center; }
+  .hero .wrap { display: flex; flex-direction: column; align-items: center; padding-top: 140px; }
+  .hero h1 { margin: 0 auto; font-size: clamp(3.4rem, 17vw, 6rem); }
+  .hero-row { justify-content: center; }
+  .hero-mark { left: 50%; right: auto; top: 22px; width: 104px; margin-left: -52px; transform: rotate(4deg); }
+
+  .sec-head { flex-direction: column; align-items: center; text-align: center; }
+  .sec-head p { margin-left: auto; margin-right: auto; }
+  .h-section { font-size: clamp(2.6rem, 13vw, 4rem); }
+  .page-head, .page-head p { text-align: center; margin-left: auto; margin-right: auto; }
+  .page-head h1 { font-size: clamp(3.2rem, 18vw, 6rem); }
+
+  .product-card .meta, .disc, .story, .stat { text-align: center; }
+  .mag-side .story { grid-template-columns: 1fr; }
+  .mag-side .story img { aspect-ratio: 16 / 10; }
+  .story .kicker { margin-left: auto; margin-right: auto; }
+  .story p { margin: 0 auto; }
+
+  .bio, .inde, .contact-layout { text-align: center; }
+  .bio .prose, .inde .prose, .lead { margin-left: auto; margin-right: auto; }
+  .bio .poster, .contact-img { max-width: 360px; margin: 0 auto; }
+  .socials { justify-content: center; }
+  .stats { border-top: 0; }
+  .stat { border-right: 0; padding: 22px 8px; border-bottom: 1px solid var(--line-inv); }
+
+  .clip-layout > div:last-child { text-align: center; }
+  .clip-list button { text-align: left; }
+
+  .shop-bar { flex-direction: column; align-items: center; }
+  .shop-bar .chips, .chips { justify-content: center; }
+  .pdp-info { text-align: center; }
+  .pdp-short { margin-left: auto; margin-right: auto; }
+  .opt-row, .buy-row { justify-content: center; }
+  .thumbs { justify-content: center; }
+  .pdp-desc.prose { text-align: left; }
+
+  .form, .field label { text-align: left; }
+  .contact-layout .btn { width: 100%; }
+
+  .dates li { text-align: center; justify-items: center; }
+  .tile span { left: 0; right: 0; text-align: center; }
+
+  .footer-top { text-align: center; justify-items: center; }
+  .footer-top p { margin-left: auto; margin-right: auto; }
+  .news-form { margin-left: auto; margin-right: auto; }
+  .footer-mark { margin-left: auto; margin-right: auto; }
+  .footer-big { text-align: center; }
+  .footer-bottom { flex-direction: column; align-items: center; text-align: center; }
+
+  .article-hero .wrap { text-align: center; }
+  .article-hero h1 { margin: 0 auto; }
+  .source-box { flex-direction: column; text-align: center; }
+  .empty { padding: 32px 0; }
+}
