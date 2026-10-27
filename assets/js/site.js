@@ -557,7 +557,15 @@
     const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
     nodes.forEach((n) => { const span = document.createElement('span'); span.innerHTML = esc(n.nodeValue).replace(/🩸/g, DROP); n.replaceWith(...span.childNodes); });
   }
-  function marks() { $$('img[data-mark]').forEach((im) => { if (!im.getAttribute('src')) im.src = site.mark; }); }
+  function marks() {
+    $$('img[data-mark]').forEach((im) => {
+      if (site.mark) { if (!im.getAttribute('src')) im.src = site.mark; return; }
+      const t = document.createElement('span');
+      t.className = im.className + ' tag69'; t.setAttribute('aria-hidden', 'true');
+      t.innerHTML = '<span class="t69">69</span><span class="t100">100</span><span class="tle">LE</span>' + DROP;
+      im.replaceWith(t);
+    });
+  }
 
   document.title = document.title || site.seoTitle;
   renderChrome();
