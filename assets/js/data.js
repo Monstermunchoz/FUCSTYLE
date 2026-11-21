@@ -25,7 +25,7 @@
       introVideoOn: true,
       introVideo: 'assets/video/intro.mp4',
       introVideoPoster: 'assets/video/intro.jpg',
-      introVideoEvery: 'session',
+      introVideoMode: 'home',
       clips: [
         { id: 'uDvVj8N55mU', title: 'Vanille Pistache (feat Sakage)' },
         { id: 'hWJVY4F6zps', title: 'Chaise Musical(e) (feat Aka Seul Two)' }

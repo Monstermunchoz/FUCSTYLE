@@ -221,7 +221,9 @@
   function openingVideo() {
     if (!site.introVideoOn || !site.introVideo || window.__FUC_PREVIEW || /fucstyleouinouin69100/.test(location.pathname)) return;
     const key = 'fucstyle:intro-seen';
-    try { if (site.introVideoEvery !== 'always' && sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch (e) {}
+    // « home » : à chaque chargement de l'accueil (même en actualisant) + première page de la visite ; « session » : une fois par visite
+    let seen = false; try { seen = !!sessionStorage.getItem(key); sessionStorage.setItem(key, '1'); } catch (e) {}
+    if (seen && !(site.introVideoMode !== 'session' && page === 'home')) return;
     introDone = false;
     const ov = document.createElement('div'); ov.className = 'opening'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', 'Vidéo d’ouverture');
     ov.innerHTML = `<video playsinline preload="auto"${site.introVideoPoster ? ` poster="${esc(site.introVideoPoster)}"` : ''}><source src="${esc(site.introVideo)}" type="video/mp4"></video>
