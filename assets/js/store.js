@@ -268,6 +268,7 @@
     Object.keys(ds).forEach((k) => { if (d.site[k] === undefined) d.site[k] = JSON.parse(JSON.stringify(ds[k])); });
     const def = (window.FUC_DEFAULTS.promotions || []);
     (d.promotions || []).forEach((p) => { const o = def.find((x) => x.id === p.id); if (!o) return; if (!p.bannerText && o.bannerText) { p.bannerText = o.bannerText; if (o.name) p.name = o.name; } if (p.id === 'pr-25' && (p.bannerV || 0) < 2) { delete p.bannerStyle; Object.assign(p, { bannerBg: o.bannerBg, bannerFg: o.bannerFg, bannerDrop: o.bannerDrop, bannerV: 2 }); } });
+    (d.promotions || []).forEach((p) => { if (p.id === 'pr-25' && p.bannerText === '🥷 VENDREDI NOIR 🥷 Le projet 69💯 Le🩸 fête ses 1 an : −25% sur tout le site') p.bannerText = '🥷 VENDREDI NOIR 🥷 Le projet 69💯 Le🩸 // fête ses 1 an : −25% sur tout le site'; });
     if (d.design && d.design.wall === '#b9b4aa') d.design.wall = '#cdc8be';
     if (d.design && d.design.paper === '#ebe8e1') d.design.paper = '#f3f1ec';
     return d;

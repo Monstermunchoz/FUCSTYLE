@@ -956,7 +956,7 @@
 
       ${isCode ? `<section class="rule-sec"><h4>Note</h4><input class="input" name="note" value="${esc(r.note || '')}" placeholder="Pour qui, pour quoi (visible seulement par toi)"></section>`
         : `<section class="rule-sec"><div class="rule-bannerrow"><h4>Bandeau en haut du site</h4><label class="switch"><input type="checkbox" name="banner"${r.banner ? ' checked' : ''}><span class="sr-only">Afficher le bandeau</span></label></div>
-          <div data-bannerbox><input class="input" name="bannerText" value="${esc(r.bannerText || '')}" placeholder="Texte du bandeau, ex. −25 % sur tout le site jusqu’à dimanche">
+          <div data-bannerbox><input class="input" name="bannerText" value="${esc(r.bannerText || '')}" placeholder="Texte du bandeau, ex. −25 % sur tout le site jusqu’à dimanche"><span class="hint">Tape <b>//</b> pour aller à la ligne sur téléphone. Ex. : Vendredi noir // −25 % sur tout le site</span>
           <div class="bn-colors"><span class="label">Couleurs du bandeau</span>
             <div class="bn-presets">${BANNER_PRESETS.map((p, i) => `<button type="button" data-bpre="${i}" title="${esc(p[0])}" style="background:${p[1]};color:${p[2]}">${esc(p[0])}</button>`).join('')}</div>
             <div class="grid-3"><label class="field"><span class="label">Fond</span><input type="color" data-bc="bannerBg" value="${esc(bc.bannerBg)}"></label><label class="field"><span class="label">Texte</span><input type="color" data-bc="bannerFg" value="${esc(bc.bannerFg)}"></label><label class="field"><span class="label">Goutte 🩸</span><input type="color" data-bc="bannerDrop" value="${esc(bc.bannerDrop)}"></label></div></div>
@@ -976,7 +976,7 @@
       const v = val();
       $('[data-ex]', dlg).innerHTML = pp && v > 0 ? `Exemple : ${esc(pp.name)} <s>${money(pp.price)}</s> <b>${money(Math.max(0, r.type === 'percent' ? pp.price * (1 - v / 100) : pp.price - v))}</b>` : '';
       if (r.scope === 'products') $('[data-pcount]', dlg).textContent = r.target.length + ' produit' + (r.target.length > 1 ? 's' : '') + ' choisi' + (r.target.length > 1 ? 's' : '');
-      const bp = $('[data-bprev]', dlg); if (bp) { $('[data-bannerbox]', dlg).hidden = !form.banner.checked; bp.innerHTML = esc(form.bannerText.value || form.name.value || 'Ton message ici').replace(/🩸/g, DROP_SVG).replace(/([−-]\s?\d+(?:[.,]\d+)?\s?(?:%|€))/, '<span class="ann-burst">$1</span>'); bp.style.background = bc.bannerBg; bp.style.color = bc.bannerFg; bp.style.setProperty('--drop', bc.bannerDrop); }
+      const bp = $('[data-bprev]', dlg); if (bp) { $('[data-bannerbox]', dlg).hidden = !form.banner.checked; bp.innerHTML = esc(form.bannerText.value || form.name.value || 'Ton message ici').replace(/🩸/g, DROP_SVG).replace(/\s*\/\/\s*/g, '<br>').replace(/([−-]\s?\d+(?:[.,]\d+)?\s?(?:%|€))/, '<span class="ann-burst">$1</span>'); bp.style.background = bc.bannerBg; bp.style.color = bc.bannerFg; bp.style.setProperty('--drop', bc.bannerDrop); }
     };
     $$('[data-unit]', dlg).forEach((b) => b.addEventListener('click', () => { r.type = b.dataset.unit; $$('[data-unit]', dlg).forEach((x) => x.setAttribute('aria-pressed', x === b)); sync(); }));
     $$('[data-scope]', dlg).forEach((b) => b.addEventListener('click', () => {

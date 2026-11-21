@@ -87,7 +87,7 @@
       if (seen !== an.text) {
         const bar = document.createElement('div'); bar.className = 'announce';
         if (an.colors) { bar.style.background = an.colors.bannerBg; bar.style.color = an.colors.bannerFg; bar.style.setProperty('--drop', an.colors.bannerDrop); } bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', 'Annonce');
-        const atxt = esc(an.text).replace(/([−-]\s?\d+(?:[.,]\d+)?\s?(?:%|€))/, '<span class="ann-burst">$1</span>');
+        const atxt = String(an.text).split(/\s*\/\/\s*/).map((part) => `<span class="ann-line">${esc(part).replace(/([−-]\s?\d+(?:[.,]\d+)?\s?(?:%|€))/, '<span class="ann-burst">$1</span>')}</span>`).join(' ');
         bar.innerHTML = (an.url ? `<a href="${esc(an.url)}">${atxt}</a>` : atxt) + '<button type="button" aria-label="Fermer l’annonce">×</button>';
         $('button', bar).addEventListener('click', () => { bar.remove(); try { sessionStorage.setItem('fucstyle:announce', an.text); } catch (e) {} });
         document.body.prepend(bar);

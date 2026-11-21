@@ -923,3 +923,17 @@ html.is-loading main { opacity: 0; } main { transition: opacity .2s; }
 html.opening-on, html.opening-on body { overflow: hidden; }
 html.opening-on .music-btn, html.opening-on .announce { visibility: hidden; }
 @media (max-width: 600px) { .opening-skip { left: 16px; right: 16px; text-align: center; } }
+
+/* bandeau : deux lignes fixes sur téléphone (le texte se coupe là où Jeff a mis « // ») */
+.ann-line { white-space: nowrap; }
+@media (max-width: 700px) {
+  .announce { padding: 8px 40px 8px 12px; font-size: clamp(11px, 3.9vw, 17px); line-height: 1.35; }
+  .announce a { display: block; }
+  .ann-line { display: block; }
+  .ann-line + .ann-line { margin-top: 4px; }
+  .announce .ann-burst { padding: .45em .6em; margin: 0 .2em; }
+}
+@media (max-width: 700px) {
+  .announce { padding: 8px 34px; font-size: clamp(10px, 3.35vw, 16px); }
+  .announce button { right: 2px; width: 30px; height: 30px; font-size: 1.1rem; }
+}
