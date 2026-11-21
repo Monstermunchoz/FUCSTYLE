@@ -265,6 +265,7 @@
   };
   Store.fill = function (d) {
     const ds = window.FUC_DEFAULTS.site || {}; d.site = d.site || {};
+    if ((d.site.clipsV || 0) < 2) { const cl = d.site.clips = d.site.clips || []; if (!cl.some((x) => x.id === 'P4RaRQGWOdg')) cl.splice(Math.min(1, cl.length), 0, { id: 'P4RaRQGWOdg', title: '69💯 Le🩸' }); d.site.clipsV = 2; }
     Object.keys(ds).forEach((k) => { if (d.site[k] === undefined) d.site[k] = JSON.parse(JSON.stringify(ds[k])); });
     const def = (window.FUC_DEFAULTS.promotions || []);
     (d.promotions || []).forEach((p) => { const o = def.find((x) => x.id === p.id); if (!o) return; if (!p.bannerText && o.bannerText) { p.bannerText = o.bannerText; if (o.name) p.name = o.name; } if (p.id === 'pr-25' && (p.bannerV || 0) < 2) { delete p.bannerStyle; Object.assign(p, { bannerBg: o.bannerBg, bannerFg: o.bannerFg, bannerDrop: o.bannerDrop, bannerV: 2 }); } });

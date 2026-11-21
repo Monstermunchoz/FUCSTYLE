@@ -100,7 +100,7 @@
     }
     D = Object.assign(clone(window.FUC_DEFAULTS), x.site, { orders: x.orders || [], messages: x.messages || [], subscribers: x.subscribers || [] });
     D.version = window.FUC_DEFAULTS.version;
-    const before = JSON.stringify(D.promotions); S.fill(D); const filled = before !== JSON.stringify(D.promotions);
+    const before = JSON.stringify([D.promotions, D.site]); S.fill(D); const filled = before !== JSON.stringify([D.promotions, D.site]);
     D.settings = Object.assign({ owner: 'Jeff' }, x.site.settings || {});
     D.messages = D.messages || [];
     S.save(D); REMOTE = true; takeSnap(); stockBase = stockMap(); if (filled) setTimeout(queueSync, 600); return true;
