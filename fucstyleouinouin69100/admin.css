@@ -557,3 +557,5 @@ img:not([src]), img[src=""] { visibility: hidden; }
 .photo-bgs button[aria-pressed="true"] { outline: 3px solid var(--blood); outline-offset: 2px; }
 .photo-bgs input[type=color] { width: 44px; height: 44px; padding: 2px; border-radius: 50%; border: 1px solid var(--line-strong); }
 .rule-banner-prev .ann-burst { display: inline-block; background: #ffd400; color: #0a0a0a; padding: 4px 9px; margin: 0 4px; transform: rotate(-4deg); clip-path: polygon(50% 0, 60% 10%, 74% 4%, 78% 18%, 93% 18%, 89% 33%, 100% 42%, 90% 54%, 98% 68%, 84% 72%, 83% 88%, 68% 85%, 58% 98%, 48% 88%, 34% 97%, 29% 83%, 13% 85%, 15% 70%, 1% 62%, 11% 50%, 2% 37%, 16% 31%, 14% 15%, 30% 17%, 37% 3%); padding: 8px 11px; }
+.cover-pick > .stack { min-width: 0; }
+.cover-pick .btn { white-space: normal; max-width: 100%; height: auto; min-height: 34px; }
