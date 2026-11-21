@@ -741,3 +741,22 @@ img.sticker { border-radius: 50%; background: var(--white); border: 4px solid va
 @media (min-width: 721px) { [data-chips]:not(.shop-bar [data-chips]) .chip { flex-basis: 130px; } }
 @media (min-width: 721px) { [data-chips]:not(.shop-bar [data-chips]) { max-width: 1100px; } }
 .nw { white-space: nowrap; }
+
+/* ===== v3 — stickers rangés, titres qui tiennent ===== */
+/* Les stickers ne recouvrent plus jamais le texte : ils sont dans le flux */
+.sticker--inline { position: static; width: 104px; transform: rotate(8deg); flex: none; margin-left: 12px; }
+.sec-head:has(.sticker--inline) { align-items: center; }
+.sticker--head { position: static; display: block; width: 116px; margin-top: 26px; transform: rotate(6deg); }
+@media (max-width: 720px) {
+  .sticker--inline { width: 74px; margin: 4px auto 0; order: 3; }
+  .sticker--head { width: 84px; margin: 20px auto 0; }
+}
+
+/* Titres : jamais plus larges que l'écran */
+.display, h1, h2, h3 { overflow-wrap: break-word; max-width: 100%; }
+.h-section { font-size: clamp(2.4rem, 11vw, 6.5rem); }
+.page-head h1 { font-size: clamp(3rem, 15vw, 11rem); }
+.bio h2 { font-size: clamp(3.2rem, 9vw, 8.5rem); }
+.contact-layout h2, .contact-layout h1 { font-size: clamp(2.2rem, 5vw, 5rem); }
+@media (max-width: 420px) { .page-head h1 { font-size: clamp(2.6rem, 14vw, 4rem); } }
+@media (max-width: 720px) { .sticker--inline { margin-bottom: 10px; } }
