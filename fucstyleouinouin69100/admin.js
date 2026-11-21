@@ -100,7 +100,8 @@
     }
     D = Object.assign(clone(window.FUC_DEFAULTS), x.site, { orders: x.orders || [], messages: x.messages || [], subscribers: x.subscribers || [] });
     D.version = window.FUC_DEFAULTS.version;
-    const before = JSON.stringify([D.promotions, D.site]); S.fill(D); const filled = before !== JSON.stringify([D.promotions, D.site]);
+    const snapF = () => JSON.stringify([D.promotions, D.site, D.products, D.posts, D.imgMeta, D.albums, D.blocks]);
+    const before = snapF(); S.fill(D); const filled = before !== snapF();
     D.settings = Object.assign({ owner: 'Jeff' }, x.site.settings || {});
     D.messages = D.messages || [];
     S.save(D); REMOTE = true; takeSnap(); stockBase = stockMap(); if (filled) setTimeout(queueSync, 600); return true;
@@ -257,7 +258,7 @@
   const csv = (rows) => '﻿' + rows.map((r) => r.map((c) => '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"').join(';')).join('\n');
   function imgPicker(container, current, onPick, opts) {
     opts = opts || {};
-    const shown = current && !/^(https?:|data:|\.\.\/)/.test(current) ? '../' + current : (current || '');
+    const shown = current && !/^(https?:|data:|\.\.\/|\/)/.test(current) ? '../' + current : (current || '');
     container.innerHTML = `<div class="cover-pick"><img${shown ? ` src="${esc(shown)}"` : ''} alt="" data-prev>
       <div class="stack" style="gap:8px"><label class="btn btn--sm" style="width:max-content">${I('upload')} Choisir une image<input type="file" accept="image/*" hidden></label>
       <input class="input" placeholder="…ou colle un lien d’image (https://…)" value="${/^data:/.test(current || '') ? '' : esc(current || '')}" data-url>
@@ -1059,7 +1060,7 @@
   /* ================= RÉGLAGE D'UNE PHOTO (cadrage, zoom) ================= */
   /* Détourer : rend transparent le fond blanc qui touche les bords de la photo */
   async function loadForCanvas(url) {
-    let src = !/^(https?:|data:|blob:|\.\.\/)/.test(url) ? '../' + url : url;
+    let src = !/^(https?:|data:|blob:|\.\.\/|\/)/.test(url) ? '../' + url : url;
     if (/^https?:/.test(src) && !src.startsWith(location.origin)) {
       const r = await fetch('../api/img?u=' + encodeURIComponent(src)); if (!r.ok) throw new Error('Photo inaccessible pour le détourage.');
       src = URL.createObjectURL(await r.blob());
@@ -1107,7 +1108,7 @@
     if (!url) return;
     D.imgMeta = D.imgMeta || {};
     const m = Object.assign({ x: 50, y: 50, z: 1, fit: 'cover' }, D.imgMeta[url] || {});
-    const src = !/^(https?:|data:|\.\.\/)/.test(url) ? '../' + url : url;
+    const src = !/^(https?:|data:|\.\.\/|\/)/.test(url) ? '../' + url : url;
     const ratio = opts.ratio || '1 / 1';
     const dlg = document.createElement('dialog'); dlg.className = 'confirm'; dlg.style.width = 'min(760px, calc(100vw - 32px))';
     dlg.innerHTML = `<h3 style="font-family:var(--f-display);font-weight:900;text-transform:uppercase;font-size:2rem">Régler la photo</h3>
@@ -1288,7 +1289,7 @@
         <div class="sty-prev" data-sprev><b class="display">Titre de section</b><p>Le texte de la section s’affiche comme ça.</p></div>
         <div class="actions" style="justify-content:space-between"><button class="btn btn--danger" type="button" data-reset>Couleurs d’origine</button><span><button class="btn" type="button" data-x>Annuler</button> <button class="btn btn--primary" type="button" data-ok>Appliquer</button></span></div></div>`;
     document.body.append(dlg); dlg.showModal();
-    const paint = () => { const pv = $('[data-sprev]', dlg); const img = st.image ? (/^(https?:|data:)/.test(st.image) ? st.image : '../' + st.image) : '';
+    const paint = () => { const pv = $('[data-sprev]', dlg); const img = st.image ? (/^(https?:|data:|\/)/.test(st.image) ? st.image : '../' + st.image) : '';
       pv.style.background = img ? `linear-gradient(rgba(0,0,0,${st.overlay / 100}),rgba(0,0,0,${st.overlay / 100})), url('${img}') center/cover` : (st.bg || '#b9b4aa');
       pv.style.color = st.color || (img ? '#fff' : '#000'); $('b', pv).style.color = st.title || 'inherit'; };
     $$('[data-c]', dlg).forEach((i) => i.addEventListener('input', () => { st[i.dataset.c] = i.value; $(`[data-on="${i.dataset.c}"]`, dlg).checked = true; paint(); }));
@@ -1640,7 +1641,7 @@
         <section class="panel"><div class="panel-head"><div><h2>Vidéo d’ouverture (pop-up)</h2><p>Elle passe en plein écran dès qu’on arrive sur le site. À la fin (ou si on appuie sur « Entrer »), elle disparaît, le site s’affiche et la musique démarre.</p></div>
           <label class="switch"><input type="checkbox" data-ovon${D.site.introVideoOn ? ' checked' : ''}> ${D.site.introVideoOn ? 'Activée' : 'Coupée'}</label></div>
           <div class="panel-body stack">
-            ${D.site.introVideo ? `<video src="${esc(/^(https?:|data:|blob:)/.test(D.site.introVideo) ? D.site.introVideo : '../' + D.site.introVideo)}" controls playsinline preload="metadata" style="width:100%;max-width:520px;border-radius:8px;background:#000"></video>` : ''}
+            ${D.site.introVideo ? `<video src="${esc(/^(https?:|data:|blob:|\/)/.test(D.site.introVideo) ? D.site.introVideo : '../' + D.site.introVideo)}" controls playsinline preload="metadata" style="width:100%;max-width:520px;border-radius:8px;background:#000"></video>` : ''}
             <div class="grid-2"><div class="field"><label for="ovu">Lien de la vidéo (MP4)</label><input id="ovu" data-ovurl value="${esc(D.site.introVideo || '')}" placeholder="https://…/video.mp4"><span class="hint">Pour une nouvelle vidéo, envoie-la à 404 Agency : on la compresse pour qu’elle charge vite.</span></div>
               <div class="field"><label for="ove">Quand la montrer</label><select id="ove" data-ovevery><option value="home"${D.site.introVideoMode !== 'session' ? ' selected' : ''}>À chaque arrivée sur l’accueil (même en actualisant)</option><option value="session"${D.site.introVideoMode === 'session' ? ' selected' : ''}>Une seule fois par visite</option></select></div></div>
             <button class="btn btn--primary" type="button" data-ovsave style="width:max-content">Enregistrer la vidéo</button></div></section>

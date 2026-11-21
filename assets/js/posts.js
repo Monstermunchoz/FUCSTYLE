@@ -1,7 +1,7 @@
 /* Magazine — articles par défaut (modifiables dans /admin > Magazine).
    Les articles presse sont des résumés rédigés pour le site, avec lien vers la source. */
 (function () {
-  const U = 'https://fucstyle.fr/wp-content/uploads/';
+  const U = '/assets/uploads/';
   window.FUC_DEFAULTS.posts = [
     {
       id: 'm-guinness', keyword: '100 heures de rap non-stop', slug: '100-heures-de-rap-non-stop-guinness',

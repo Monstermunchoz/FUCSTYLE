@@ -2,7 +2,7 @@
    Toutes ces données sont modifiables depuis le tableau de bord (/admin).
    Photos et textes repris à l'identique de fucstyle.fr. */
 (function () {
-  const U = 'https://fucstyle.fr/wp-content/uploads/';
+  const U = '/assets/uploads/';
 
   window.FUC_DEFAULTS = {
     version: 12,
@@ -178,7 +178,7 @@
 
     albums: [
       {
-        id: 'a-69', slug: '69100-le-sang', title: '69💯 Le🩸', year: '2025', artist: 'Fucstyle', cover: U + '2025/10/Gemini_Generated_Image_r9ikqsr9ikqsr9ik.png',
+        id: 'a-69', slug: '69100-le-sang', title: '69💯 Le🩸', year: '2025', artist: 'Fucstyle', cover: '/assets/img/69-le-sang-cover.jpg',
         text: 'Premier album solo de Fucstyle, sorti le 12 décembre 2025. L’aboutissement de plus de 120 freestyles du dimanche.',
         links: [{ label: 'Spotify', url: 'https://open.spotify.com/intl-fr/artist/6pNwXQDJt1nMZTlasvWuIj' }, { label: 'Acheter le CD', url: 'produit.html?p=album-cd' }]
       },

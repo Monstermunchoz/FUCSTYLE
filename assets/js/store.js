@@ -264,6 +264,11 @@
     return { bannerBg: (p && p.bannerBg) || base[0], bannerFg: (p && p.bannerFg) || base[1], bannerDrop: (p && p.bannerDrop) || base[2] };
   };
   Store.fill = function (d) {
+    /* photos rapatriées de l'ancien WordPress : on réécrit les vieilles adresses partout (valeurs et clés) */
+    const OLD = /https?:\/\/(www\.)?fucstyle\.fr\/wp-content\/uploads\//g;
+    const fix = (o) => { if (!o || typeof o !== 'object') return; Object.keys(o).forEach((k) => { let v = o[k]; if (typeof v === 'string' && OLD.test(v)) { OLD.lastIndex = 0; v = o[k] = v.replace(OLD, '/assets/uploads/'); } OLD.lastIndex = 0; if (v && typeof v === 'object') fix(v); if (!Array.isArray(o) && OLD.test(k)) { OLD.lastIndex = 0; const nk = k.replace(OLD, '/assets/uploads/'); if (!(nk in o)) o[nk] = o[k]; delete o[k]; } OLD.lastIndex = 0; }); };
+    ['site', 'products', 'posts', 'imgMeta', 'albums', 'events', 'blocks', 'freestyles', 'sectionStyle'].forEach((k) => fix(d[k]));
+    (d.albums || []).forEach((a) => { if (a.id === 'a-69' && /Gemini_Generated_Image_r9ikqsr9ikqsr9ik/.test(a.cover || '')) a.cover = '/assets/img/69-le-sang-cover.jpg'; });
     const ds = window.FUC_DEFAULTS.site || {}; d.site = d.site || {};
     if ((d.site.clipsV || 0) < 2) { const cl = d.site.clips = d.site.clips || []; if (!cl.some((x) => x.id === 'P4RaRQGWOdg')) cl.splice(Math.min(1, cl.length), 0, { id: 'P4RaRQGWOdg', title: 'Fatcap (feat Tapas Nocturne)' }); d.site.clipsV = 2; }
     if ((d.site.clipsV || 0) < 3) { (d.site.clips || []).forEach((x) => { if (x.id === 'P4RaRQGWOdg' && x.title === '69💯 Le🩸') x.title = 'Fatcap (feat Tapas Nocturne)'; }); d.site.clipsV = 3; }
