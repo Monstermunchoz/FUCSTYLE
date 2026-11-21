@@ -8,15 +8,15 @@
 </head>
 <body data-page="home">
 <main>
-  <section class="hero" aria-label="Fucstyle">
+  <section class="hero" aria-label="Fucstyle" data-sec="hero">
     <video data-hero-video autoplay muted loop playsinline preload="auto" poster="https://fucstyle.fr/wp-content/uploads/2025/10/Fucstyle.jpg"></video>
     <h1 class="sr-only">Fucstyle, rappeur lyonnais — album 69💯 Le🩸, merch et clips</h1>
     <a class="hero-scroll" href="#shop" aria-label="Descendre vers la boutique"></a>
   </section>
 
-  <div class="tape-band"><a href="boutique.html" class="tape-track" data-ticker></a></div>
+  <div class="tape-band" data-sec="ticker"><a href="boutique.html" class="tape-track" data-ticker></a></div>
 
-  <section class="section" id="shop">
+  <section class="section" id="shop" data-sec="shop">
     <div class="wrap">
       <div class="sec-head">
         <h2 class="display h-section" data-shop-title>Dispo les zins</h2>
@@ -26,14 +26,14 @@
     </div>
   </section>
 
-  <section class="section section--ink">
+  <section class="section section--ink" data-sec="clip">
     <div class="wrap">
       <div class="sec-head"><h2 class="display h-section" data-clip-title>Dernier clip les zins</h2><a class="link-arrow" href="clips.html">Tous les clips</a></div>
       <div data-clip></div>
     </div>
   </section>
 
-  <section class="section">
+  <section class="section" data-sec="bio">
     <div class="wrap bio">
       <div class="poster" style="--r:-1.4deg"><img data-bio-photo alt="Fucstyle" loading="lazy"><img class="sticker sticker--corner" data-mark alt="" aria-hidden="true"></div>
       <div>
@@ -45,7 +45,7 @@
     </div>
   </section>
 
-  <section class="section section--paper">
+  <section class="section section--paper" data-sec="freestyles">
     <div class="wrap">
       <div class="sec-head">
         <div><h2 class="display h-section">Freestyle sunday</h2><p>Un freestyle chaque dimanche depuis février 2023. Un thème, un décor, et Lyon comme terrain de jeu.</p></div>
@@ -55,11 +55,11 @@
     </div>
   </section>
 
-  <section class="section section--ink" aria-label="Chiffres">
+  <section class="section section--ink" aria-label="Chiffres" data-sec="stats">
     <div class="wrap"><div class="stats" data-stats></div></div>
   </section>
 
-  <section class="section">
+  <section class="section" data-sec="inde">
     <div class="wrap inde">
       <div>
         <h2 class="display h-section" data-inde-title>RAP INDé</h2>
@@ -69,23 +69,23 @@
     </div>
   </section>
 
-  <div class="tiles" data-tiles></div>
+  <div class="tiles" data-tiles data-sec="tiles"></div>
 
-  <section class="section section--paper">
+  <section class="section section--paper" data-sec="discs">
     <div class="wrap">
       <div class="sec-head"><h2 class="display h-section">Discographie</h2><a class="link-arrow" href="a-propos.html">Le parcours</a><img class="sticker sticker--inline" data-mark alt="" aria-hidden="true"></div>
       <div class="discs" data-discs></div>
     </div>
   </section>
 
-  <section class="section">
+  <section class="section" data-sec="mag">
     <div class="wrap">
       <div class="sec-head"><div><h2 class="display h-section">L’actu</h2><p>Presse, clips, scène et coulisses : tout ce qui se dit sur le 69100.</p></div><a class="link-arrow" href="magazine.html">Toute l’actu</a><img class="sticker sticker--inline" data-mark alt="" aria-hidden="true"></div>
       <div class="mag-grid" data-mag></div>
     </div>
   </section>
 
-  <section class="section section--ink" id="contact">
+  <section class="section section--ink" id="contact" data-sec="contact">
     <div class="wrap contact-layout">
       <div>
         <h2 class="display" data-contact-title>Une question, une idée, une collab ?</h2>

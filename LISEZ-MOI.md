@@ -6,7 +6,7 @@ Fait par 404 Agency.
 ## Ouvrir
 
 - **Le site** : double-clic sur `index.html`.
-- **Le tableau de bord** : `admin/index.html` — code d'accès par défaut **6969** (à changer dans Réglages).
+- **Le tableau de bord** : dans son dossier à l'adresse secrète communiquée à Jeff (pas de lien depuis le site). Mot de passe à changer dans Mon profil.
 
 ## Le tableau de bord
 

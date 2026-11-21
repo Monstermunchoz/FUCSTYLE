@@ -50,6 +50,7 @@
 
   const Store = {
     load() {
+      if (window.__FUC_PREVIEW) return window.__FUC_PREVIEW;
       try {
         const raw = localStorage.getItem(KEY);
         if (raw) {
@@ -62,6 +63,7 @@
       return d;
     },
     save(d) {
+      if (window.__FUC_PREVIEW) return true;
       try { localStorage.setItem(KEY, JSON.stringify(d)); return true; }
       catch (e) { console.warn('Sauvegarde impossible', e); return false; }
     },
@@ -98,21 +100,21 @@
         const p = d.products.find((x) => x.id === l.productId);
         if (!p) return null;
         const v = p.variants.find((x) => x.key === l.variantKey);
-        return { ...l, product: p, variantLabel: v ? [v.size, v.color].filter(Boolean).join(' / ') : '', lineTotal: p.price * l.qty };
+        const pr = Store.priceOf(d, p);
+        return { ...l, product: p, unit: pr.price, was: pr.was, variantLabel: v ? [v.size, v.color].filter(Boolean).join(' / ') : '', lineTotal: +(pr.price * l.qty).toFixed(2) };
       }).filter(Boolean);
     },
 
     /* ---------- commandes ---------- */
     placeOrder(d, customer, lines, promo) {
       const subtotal = lines.reduce((s, l) => s + l.lineTotal, 0);
-      let discount = 0;
-      if (promo) discount = promo.type === 'percent' ? subtotal * promo.value / 100 : Math.min(promo.value, subtotal);
-      const shipping = subtotal - discount >= d.shipping.freeFrom ? 0 : d.shipping.flat;
+      const discount = promo ? Store.codeDiscount(d, promo, lines) : 0;
+      const shipping = Store.shippingFor(d, customer.country, subtotal - discount).price;
       const nums = d.orders.map((o) => +o.id.replace(/\D/g, '')).filter(Boolean);
       const id = 'FS-' + ((nums.length ? Math.max(...nums) : 1041) + 1);
       const order = {
         id, demo: false, date: new Date().toISOString(), customer,
-        items: lines.map((l) => ({ productId: l.productId, name: l.product.name, variant: l.variantLabel, variantKey: l.variantKey, qty: l.qty, price: l.product.price, image: l.product.images[0] })),
+        items: lines.map((l) => ({ productId: l.productId, name: l.product.name, variant: l.variantLabel, variantKey: l.variantKey, qty: l.qty, price: l.unit, image: l.product.images[0] })),
         subtotal, shipping, discount: +discount.toFixed(2), total: +(subtotal - discount + shipping).toFixed(2),
         status: 'payee', payment: 'Carte bancaire', tracking: '', note: promo ? 'Code ' + promo.code : ''
       };
@@ -126,6 +128,67 @@
       Store.save(d);
       Store.setCart([]);
       return order;
+    },
+
+    /* ---------- livraison par zone ---------- */
+    zones(d) {
+      const s = d.shipping || {};
+      if (s.zones && s.zones.length) return s.zones;
+      return [{ id: 'fr', name: 'France', countries: s.countries || ['France'], price: s.flat || 0, freeFrom: s.freeFrom || 0, delay: '' }];
+    },
+    countries(d) { return [...new Set(Store.zones(d).flatMap((z) => z.countries))]; },
+    shippingFor(d, country, sub) {
+      const zs = Store.zones(d);
+      const z = zs.find((x) => x.countries.includes(country)) || zs[0];
+      const free = z.freeFrom > 0 && sub >= z.freeFrom;
+      return { zone: z, price: free ? 0 : +z.price || 0, free, left: z.freeFrom > 0 ? Math.max(0, z.freeFrom - sub) : null };
+    },
+
+    /* ---------- promotions ----------
+       promotions : remises automatiques (tout le site, une catégorie, un type, un produit)
+       promos     : codes promo saisis au paiement, avec la même portée */
+    applies(rule, p) {
+      if (!rule) return false;
+      if (!rule.scope || rule.scope === 'all') return true;
+      if (rule.scope === 'category') return p.category === rule.target;
+      if (rule.scope === 'type') return (p.type || '').toLowerCase() === String(rule.target || '').toLowerCase();
+      if (rule.scope === 'product') return p.id === rule.target;
+      return false;
+    },
+    live(rule) {
+      if (!rule || !rule.active) return false;
+      const t = Date.now();
+      if (rule.start && t < +new Date(rule.start)) return false;
+      if (rule.end && t > +new Date(rule.end + 'T23:59:59')) return false;
+      return true;
+    },
+    priceOf(d, p) {
+      const base = +p.price || 0;
+      let best = null, bestPrice = base;
+      (d.promotions || []).filter(Store.live).forEach((r) => {
+        if (!Store.applies(r, p)) return;
+        const np = r.type === 'percent' ? base * (1 - r.value / 100) : Math.max(0, base - r.value);
+        if (np < bestPrice) { bestPrice = np; best = r; }
+      });
+      const price = Math.round(bestPrice * 100) / 100;
+      const was = best ? base : (p.compareAt && p.compareAt > base ? p.compareAt : null);
+      return { price, was, rule: best, label: best ? (best.type === 'percent' ? '−' + best.value + ' %' : '−' + Store.money(best.value)) : (was ? 'Promo' : '') };
+    },
+    sitePromo(d) { return (d.promotions || []).filter(Store.live).find((r) => (r.scope || 'all') === 'all' && r.banner); },
+    codeDiscount(d, code, lines) {
+      const elig = lines.filter((l) => Store.applies(code, l.product));
+      const base = elig.reduce((s, l) => s + l.lineTotal, 0);
+      if (!base) return 0;
+      const v = code.type === 'percent' ? base * code.value / 100 : Math.min(code.value, base);
+      return Math.round(v * 100) / 100;
+    },
+
+    /* ---------- réglage des photos (cadrage, zoom) ---------- */
+    imgMeta(d, url) { return (d.imgMeta || {})[url] || null; },
+    imgStyle(d, url) {
+      const m = Store.imgMeta(d, url);
+      if (!m) return '';
+      return ` style="object-position:${+m.x || 50}% ${+m.y || 50}%;${m.fit === 'contain' ? 'object-fit:contain;' : ''}${m.z > 1 ? `transform:scale(${m.z});transform-origin:${m.x}% ${m.y}%;` : ''}"${m.z > 1 ? ' data-zoom' : ''}`;
     },
 
     /* ---------- outils ---------- */
@@ -147,8 +210,9 @@
       let list = null;
       String(src || '').split('\n').forEach((line) => {
         const l = line.trim();
-        if (/^- /.test(l)) { if (!list) { list = []; } list.push('<li>' + inline(l.slice(2)) + '</li>'); return; }
-        if (list) { out.push('<ul>' + list.join('') + '</ul>'); list = null; }
+        const ol = l.match(/^\d+\.\s+(.*)/);
+        if (/^- /.test(l) || ol) { const tag = ol ? 'ol' : 'ul'; if (list && list.tag !== tag) { out.push('<' + list.tag + '>' + list.join('') + '</' + list.tag + '>'); list = null; } if (!list) { list = []; list.tag = tag; } list.push('<li>' + inline(ol ? ol[1] : l.slice(2)) + '</li>'); return; }
+        if (list) { out.push('<' + list.tag + '>' + list.join('') + '</' + list.tag + '>'); list = null; }
         if (!l) return;
         const fig = l.match(/^!\[([^\]]*)\]\(((?:https?:\/\/|data:image\/)[^)\s]+)\)$/);
         if (fig) { out.push('<figure><img src="' + Store.esc(fig[2]) + '" alt="' + Store.esc(fig[1]) + '" loading="lazy">' + (fig[1] ? '<figcaption>' + Store.esc(fig[1]) + '</figcaption>' : '') + '</figure>'); return; }
@@ -157,7 +221,7 @@
         else if (/^> /.test(l)) out.push('<blockquote>' + inline(l.slice(2)) + '</blockquote>');
         else out.push('<p>' + inline(l) + '</p>');
       });
-      if (list) out.push('<ul>' + list.join('') + '</ul>');
+      if (list) out.push('<' + list.tag + '>' + list.join('') + '</' + list.tag + '>');
       return out.join('\n');
     }
   };

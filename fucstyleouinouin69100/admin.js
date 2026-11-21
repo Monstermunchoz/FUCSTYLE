@@ -120,13 +120,16 @@
     const shown = current && !/^(https?:|data:|\.\.\/)/.test(current) ? '../' + current : (current || '');
     container.innerHTML = `<div class="cover-pick"><img src="${esc(shown)}" alt="" data-prev>
       <div class="stack" style="gap:8px"><label class="btn btn--sm" style="width:max-content">${I('upload')} Choisir une image<input type="file" accept="image/*" hidden></label>
-      <input class="input" placeholder="…ou colle un lien d’image (https://…)" value="${/^data:/.test(current || '') ? '' : esc(current || '')}" data-url></div></div>`;
+      <input class="input" placeholder="…ou colle un lien d’image (https://…)" value="${/^data:/.test(current || '') ? '' : esc(current || '')}" data-url>
+      <button class="btn btn--sm" type="button" data-adjust style="width:max-content"${current ? '' : ' hidden'}>Régler le cadrage</button></div></div>`;
+    let cur = current;
+    $('[data-adjust]', container).addEventListener('click', () => adjustImage(cur, { onDone: opts.onAdjusted }));
     const prev = $('[data-prev]', container);
     $('input[type=file]', container).addEventListener('change', async (e) => {
       const f = e.target.files[0]; if (!f) return;
-      try { const u = await readImage(f, opts.max); prev.src = u; onPick(u); } catch (err) { toast(err.message, true); }
+      try { const u = await readImage(f, opts.max); prev.src = u; cur = u; $('[data-adjust]', container).hidden = false; onPick(u); } catch (err) { toast(err.message, true); }
     });
-    $('[data-url]', container).addEventListener('change', (e) => { const u = e.target.value.trim(); if (u) { prev.src = u; onPick(u); } });
+    $('[data-url]', container).addEventListener('change', (e) => { const u = e.target.value.trim(); if (u) { prev.src = u; cur = u; $('[data-adjust]', container).hidden = false; onPick(u); } });
   }
 
   /* ---------- connexion ---------- */
@@ -134,10 +137,10 @@
   function loginView() {
     root.innerHTML = `<div class="login"><form class="login-box" autocomplete="off">
       <img src="${esc(D.site.logo)}" alt="Fucstyle">
-      <h1 class="display">Tableau de bord</h1><p>Entre ton code pour gérer la boutique, le magazine et le site.</p>
-      <label class="sr-only" for="pin">Code</label><input id="pin" type="password" inputmode="numeric" maxlength="12" placeholder="••••" autofocus>
+      <h1 class="display">Tableau de bord</h1><p>Entre ton mot de passe pour gérer la boutique, l’actu et le site.</p>
+      <label class="sr-only" for="pin">Code</label><input id="pin" type="password" maxlength="64" placeholder="Mot de passe" autocomplete="current-password" autofocus>
       <button class="btn btn--blood" type="submit">Entrer</button><div class="login-err" role="alert"></div>
-      <p style="margin-top:18px;font-size:13px">Code par défaut : 6969 — à changer dans Réglages.</p></form></div>`;
+      </form></div>`;
     $('form', root).addEventListener('submit', (e) => {
       e.preventDefault();
       if ($('#pin').value === String(D.settings.pin)) { try { sessionStorage.setItem('fucstyle:admin', '1'); } catch (er) {} shell(); route(); }
@@ -148,9 +151,9 @@
   /* ---------- squelette ---------- */
   const NAV = [
     ['Pilotage', [['#/', 'Vue d’ensemble', 'home']]],
-    ['Boutique', [['#/produits', 'Produits', 'box'], ['#/stock', 'Stock', 'layers'], ['#/commandes', 'Commandes', 'cart', () => D.orders.filter((o) => o.status === 'payee').length], ['#/clients', 'Clients', 'users'], ['#/notifications', 'Notifications', 'bell'], ['#/promos', 'Codes promo', 'tag']]],
-    ['Contenu', [['#/magazine', 'L’actu', 'pen'], ['#/site', 'Pages du site', 'layout'], ['#/musique', 'Musique & scène', 'music'], ['#/messages', 'Messages', 'mail', () => D.messages.filter((m) => !m.read).length]]],
-    ['Compte', [['#/reglages', 'Réglages', 'gear']]]
+    ['Boutique', [['#/produits', 'Produits', 'box'], ['#/stock', 'Stock', 'layers'], ['#/commandes', 'Commandes', 'cart', () => D.orders.filter((o) => o.status === 'payee').length], ['#/clients', 'Clients', 'users'], ['#/notifications', 'Notifications', 'bell'], ['#/promos', 'Promotions', 'tag'], ['#/livraison', 'Livraison', 'box']]],
+    ['Contenu', [['#/magazine', 'L’actu', 'pen'], ['#/sections', 'Mise en page', 'layers'], ['#/site', 'Textes & photos', 'layout'], ['#/design', 'Charte graphique', 'pen'], ['#/musique', 'Musique & scène', 'music'], ['#/legal', 'Pages légales', 'layout'], ['#/messages', 'Messages', 'mail', () => D.messages.filter((m) => !m.read).length]]],
+    ['Compte', [['#/reglages', 'Mon profil', 'users']]]
   ];
   let dirty = false;
   function shell() {
@@ -224,6 +227,12 @@
         <div class="kpi"><div class="l">Commandes (30 j)</div><div class="v">${cur.length}</div><div class="d">${delta(cur.length, prev.length)}</div></div>
         <div class="kpi"><div class="l">Panier moyen</div><div class="v">${money(cur.length ? sum(cur) / cur.length : 0)}</div><div class="d">sur 30 jours</div></div>
         <div class="kpi"><div class="l">Articles vendus (30 j)</div><div class="v">${items(cur)}</div><div class="d">${delta(items(cur), items(prev))}</div></div></div>
+      <section class="panel" style="margin-bottom:20px"><div class="panel-head"><div><h2>Commandes en cours</h2><p>Clique sur une commande pour l’ouvrir et la faire avancer.</p></div><a class="btn btn--sm" href="#/commandes">Toutes les commandes</a></div>
+        <div class="board">${[['payee', 'À préparer', 'Payées, à mettre en carton'], ['preparation', 'À expédier', 'Prêtes, à poster'], ['expediee', 'En route', 'Chez le transporteur'], ['livree', 'Livrées (30 j)', 'Bien arrivées']].map(([st, t, sub]) => {
+          const l = D.orders.filter((o) => o.status === st && (st !== 'livree' || +new Date(o.date) > now - 30 * DAY));
+          return `<div class="lane lane--${st}"><div class="lane-head"><b>${t}</b><span class="lane-n">${l.length}</span></div><small>${sub}</small>
+            ${l.slice(0, 5).map((o) => `<a class="ticket" href="#/commandes/${o.id}"><span><b>${esc(o.id)}</b> ${esc(o.customer.first)} ${esc(o.customer.last[0] || '')}.</span><span>${money(o.total)}</span><small>${o.items.map((i) => i.qty + '× ' + esc(i.name)).join(', ')}</small></a>`).join('')}
+            ${l.length > 5 ? `<a class="lane-more" href="#/commandes/f/${st}">+ ${l.length - 5} autres</a>` : ''}${!l.length ? '<p class="lane-empty">Rien ici</p>' : ''}</div>`; }).join('')}</div></section>
       <div class="cols">
         <div class="stack">
           <section class="panel"><div class="panel-head"><div><h2>Ventes</h2><p data-chart-sub></p></div>
@@ -315,11 +324,16 @@
       $('[data-list]', c).innerHTML = list.length ? `<table class="t"><thead><tr><th>Produit</th><th>Catégorie</th><th class="num">Prix</th><th>Stock</th><th>Statut</th><th></th></tr></thead><tbody>
         ${list.map((p) => `<tr data-id="${p.id}"><td><div class="prod"><img src="${esc(p.images[0] || '')}" alt=""><div><b>${esc(p.name)}</b><small>${esc(p.sku || '')}${p.variants.length ? ' — ' + p.variants.length + ' variantes' : ''}</small></div></div></td>
           <td>${esc(p.category)}</td><td class="num">${money(p.price)}</td><td>${stockPill(p)}</td><td>${pill(p.status, PSTATUS[p.status])}${p.preorder ? ' <span class="tag">Précommande</span>' : ''}</td>
-          <td class="num"><button class="btn btn--sm btn--ghost" data-dup="${p.id}" title="Dupliquer">${I('copy')}</button><button class="btn btn--sm btn--ghost btn--danger" data-del="${p.id}" title="Supprimer">${I('trash')}</button></td></tr>`).join('')}</tbody></table>`
+          <td class="num"><button class="btn btn--sm" data-oos="${p.id}" title="${S.stockState(p) === 'out' ? 'Remettre du stock' : 'Mettre en rupture'}">${S.stockState(p) === 'out' ? 'Remettre en stock' : 'Rupture'}</button><button class="btn btn--sm btn--ghost" data-dup="${p.id}" title="Dupliquer">${I('copy')}</button><button class="btn btn--sm btn--ghost btn--danger" data-del="${p.id}" title="Supprimer">${I('trash')}</button></td></tr>`).join('')}</tbody></table>`
         : `<div class="empty-state"><b>Aucun produit trouvé</b>Change les filtres ou ajoute un produit.</div>`;
     };
     $$('[data-f]', c).forEach((i) => i.addEventListener('input', () => { f[i.dataset.f] = i.value; draw(); }));
     c.addEventListener('click', async (e) => {
+      const oos = e.target.closest('[data-oos]');
+      if (oos) { e.stopPropagation(); const p = D.products.find((x) => x.id === oos.dataset.oos);
+        if (S.stockState(p) === 'out') { const q = +prompt('Combien d’exemplaires remettre en stock' + (p.variants.length ? ' (par variante)' : '') + ' ?', '10'); if (!(q > 0)) return; if (p.variants.length) p.variants.forEach((v) => (v.stock = q)); else p.stock = q; p.preorder = false; save(p.name + ' remis en stock'); }
+        else { if (!(await confirmBox('Mettre en rupture ?', `« ${p.name} » affichera « Rupture » et ne pourra plus être acheté.`, 'Mettre en rupture'))) return; p._stockBackup = p.variants.length ? p.variants.map((v) => v.stock) : p.stock; if (p.variants.length) p.variants.forEach((v) => (v.stock = 0)); else p.stock = 0; p.preorder = false; save(p.name + ' en rupture'); }
+        draw(); return; }
       const dup = e.target.closest('[data-dup]'), del = e.target.closest('[data-del]'), row = e.target.closest('tr[data-id]');
       if (dup) { e.stopPropagation(); const p = clone(D.products.find((x) => x.id === dup.dataset.dup)); p.id = S.uid('p'); p.name += ' (copie)'; p.slug = S.slugify(p.name); p.status = 'brouillon'; D.products.push(p); save('Produit dupliqué en brouillon'); draw(); return; }
       if (del) { e.stopPropagation(); const p = D.products.find((x) => x.id === del.dataset.del); if (await confirmBox('Supprimer ce produit ?', `« ${p.name} » sera retiré de la boutique. Les anciennes commandes restent visibles.`, 'Supprimer')) { D.products = D.products.filter((x) => x !== p); save('Produit supprimé'); draw(); } return; }
@@ -488,10 +502,11 @@
       $('[data-gallery]', dlg).innerHTML = p.images.map((u, i) => `<div class="gimg"><img src="${esc(u)}" alt="">${i === 0 ? '<span class="main-badge">Principale</span>' : ''}
         <div class="tools">${i ? `<button type="button" data-mv="${i}" data-d="-1" title="Avancer">${I('left')}</button><button type="button" data-main="${i}" title="Mettre en principale">${I('star')}</button>` : ''}
         ${i < p.images.length - 1 ? `<button type="button" data-mv="${i}" data-d="1" title="Reculer">${I('right')}</button>` : ''}
-        <button type="button" class="del" data-rmimg="${i}" title="Supprimer la photo">${I('trash')}</button></div></div>`).join('') || '<p class="hint" style="grid-column:1/-1;margin:0">Aucune photo pour l’instant.</p>';
+        <button type="button" data-adj="${i}" title="Régler le cadrage">${I('eye')}</button><button type="button" class="del" data-rmimg="${i}" title="Supprimer la photo">${I('trash')}</button></div></div>`).join('') || '<p class="hint" style="grid-column:1/-1;margin:0">Aucune photo pour l’instant.</p>';
     };
     drawGallery();
     $('[data-gallery]', dlg).addEventListener('click', (e) => {
+      const adj = e.target.closest('[data-adj]'); if (adj) return adjustImage(p.images[+adj.dataset.adj], { onDone: preview });
       const mv = e.target.closest('[data-mv]'), mn = e.target.closest('[data-main]'), rm = e.target.closest('[data-rmimg]');
       if (mv) { const i = +mv.dataset.mv, j = i + +mv.dataset.d; [p.images[i], p.images[j]] = [p.images[j], p.images[i]]; }
       else if (mn) { const i = +mn.dataset.main; p.images.unshift(p.images.splice(i, 1)[0]); }
@@ -664,54 +679,410 @@
   }
 
   /* ================= CLIENTS ================= */
-  views.clients = (c) => {
+  function customerMap() {
     const map = {};
     D.orders.forEach((o) => {
       const k = o.customer.email.toLowerCase();
-      const m = map[k] = map[k] || { name: o.customer.first + ' ' + o.customer.last, email: o.customer.email, city: o.customer.city, phone: o.customer.phone, orders: 0, spent: 0, last: o.date };
-      m.orders++; if (countable(o)) m.spent += o.total; if (o.date > m.last) m.last = o.date;
+      const m = map[k] = map[k] || { key: k, name: o.customer.first + ' ' + o.customer.last, first: o.customer.first, email: o.customer.email, city: o.customer.city, phone: o.customer.phone, address: o.customer.address, zip: o.customer.zip, country: o.customer.country, orders: [], spent: 0, last: o.date, first_date: o.date };
+      m.orders.push(o); if (countable(o)) m.spent += o.total;
+      if (o.date > m.last) { m.last = o.date; Object.assign(m, { phone: o.customer.phone || m.phone, address: o.customer.address, zip: o.customer.zip, city: o.customer.city }); }
+      if (o.date < m.first_date) m.first_date = o.date;
     });
+    (D.subscribers || []).forEach((s) => { if (map[s.email]) map[s.email].sub = true; });
+    return map;
+  }
+  views.clients = (c, args) => {
+    const map = customerMap();
+    if (args[0]) return clientDetail(c, map[decodeURIComponent(args[0]).toLowerCase()]);
     const list = Object.values(map).sort((a, b) => b.spent - a.spent);
-    c.innerHTML = head('Clients', list.length + ' clients ont commandé', `<button class="btn" type="button" data-exp>${I('download')} Exporter (CSV)</button><button class="btn btn--primary" type="button" data-notifall>${I('bell')} Notifier tous les membres</button>`)
+    c.innerHTML = head('Clients', list.length + ' clients ont commandé', `<button class="btn" type="button" data-exp>${I('download')} Exporter (CSV)</button><button class="btn btn--primary" type="button" data-notifall>${I('mail')} Écrire à tous</button>`)
       + `<section class="panel"><div class="toolbar"><input class="input" type="search" placeholder="Nom, email ou ville" data-q aria-label="Rechercher"></div><div class="table-wrap" data-list></div></section>`;
     const draw = (q) => {
       const l = list.filter((x) => !q || (x.name + ' ' + x.email + ' ' + x.city).toLowerCase().includes(q));
       $('[data-list]', c).innerHTML = l.length ? `<table class="t"><thead><tr><th>Client</th><th>Ville</th><th class="num">Commandes</th><th class="num">Total dépensé</th><th>Dernière commande</th><th></th></tr></thead><tbody>
-        ${l.map((x) => `<tr data-mail="${esc(x.email)}"><td><b>${esc(x.name)}</b><br><small style="color:var(--muted)">${esc(x.email)}</small></td><td>${esc(x.city)}</td><td class="num">${x.orders}</td><td class="num"><b>${money(x.spent)}</b></td><td>${fmtDate(x.last)}</td><td class="num"><button class="btn btn--sm" type="button" data-notif="${esc(x.email)}">${I('bell')} Notifier</button></td></tr>`).join('')}</tbody></table>`
+        ${l.map((x) => `<tr data-mail="${esc(x.key)}"><td><b>${esc(x.name)}</b><br><small style="color:var(--muted)">${esc(x.email)}</small></td><td>${esc(x.city)}</td><td class="num">${x.orders.length}</td><td class="num"><b>${money(x.spent)}</b></td><td>${fmtDate(x.last)}</td><td class="num"><button class="btn btn--sm" type="button" data-notif="${esc(x.email)}">${I('mail')} Écrire</button></td></tr>`).join('')}</tbody></table>`
         : '<div class="empty-state"><b>Aucun client</b>Les clients apparaissent dès leur première commande.</div>';
     };
     $('[data-q]', c).addEventListener('input', (e) => draw(e.target.value.toLowerCase()));
-    c.addEventListener('click', (e) => { const n = e.target.closest('[data-notif]'); if (n) { e.stopPropagation(); return composer({ email: n.dataset.notif }); } const r = e.target.closest('tr[data-mail]'); if (r) location.hash = '#/recherche/' + encodeURIComponent(r.dataset.mail); });
+    c.addEventListener('click', (e) => { const n = e.target.closest('[data-notif]'); if (n) { e.stopPropagation(); return composer({ email: n.dataset.notif }); } const r = e.target.closest('tr[data-mail]'); if (r) location.hash = '#/clients/' + encodeURIComponent(r.dataset.mail); });
     $('[data-notifall]', c).addEventListener('click', () => composer());
-    $('[data-exp]', c).addEventListener('click', () => download('clients-fucstyle.csv', csv([['Nom', 'Email', 'Téléphone', 'Ville', 'Commandes', 'Total']].concat(list.map((x) => [x.name, x.email, x.phone, x.city, x.orders, x.spent.toFixed(2)]))), 'text/csv'));
+    $('[data-exp]', c).addEventListener('click', () => download('clients-fucstyle.csv', csv([['Nom', 'Email', 'Téléphone', 'Adresse', 'CP', 'Ville', 'Pays', 'Commandes', 'Total', 'Client depuis']].concat(list.map((x) => [x.name, x.email, x.phone, x.address, x.zip, x.city, x.country, x.orders.length, x.spent.toFixed(2), fmtDate(x.first_date)]))), 'text/csv'));
     draw('');
   };
+  function clientDetail(c, m) {
+    if (!m) { c.innerHTML = '<div class="empty-state"><b>Client introuvable</b><a href="#/clients">Retour aux clients</a></div>'; return; }
+    D.clientNotes = D.clientNotes || {};
+    const bought = {};
+    m.orders.filter(countable).forEach((o) => o.items.forEach((i) => { bought[i.name] = (bought[i.name] || 0) + i.qty; }));
+    c.innerHTML = `<p style="margin:0 0 6px"><a href="#/clients">← Clients</a></p>` + head(esc(m.name), 'Client depuis le ' + fmtDate(m.first_date) + (m.sub ? ' — inscrit à la newsletter' : ''),
+      `<button class="btn btn--primary" type="button" data-write>${I('mail')} Lui écrire</button>`)
+      + `<div class="kpis" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><div class="l">Total dépensé</div><div class="v">${money(m.spent)}</div></div><div class="kpi"><div class="l">Commandes</div><div class="v">${m.orders.length}</div></div><div class="kpi"><div class="l">Panier moyen</div><div class="v">${money(m.orders.length ? m.spent / m.orders.length : 0)}</div></div></div>
+      <div class="cols"><div class="stack">
+        <section class="panel"><div class="panel-head"><h2>Commandes</h2></div><div class="table-wrap">${ordersTable([...m.orders].sort((a, b) => b.date.localeCompare(a.date)))}</div></section>
+        <section class="panel"><div class="panel-head"><h2>Ce qu’il a acheté</h2></div><div class="panel-body">${Object.entries(bought).map(([n, q]) => `<span class="tag" style="margin:0 6px 6px 0">${esc(n)} × ${q}</span>`).join('') || '<p class="hint">Rien pour l’instant.</p>'}</div></section>
+      </div><div class="stack">
+        <section class="panel"><div class="panel-head"><h2>Coordonnées</h2></div><div class="panel-body">
+          <dl class="kv"><dt>Email</dt><dd><a href="mailto:${esc(m.email)}">${esc(m.email)}</a></dd><dt>Téléphone</dt><dd>${m.phone ? `<a href="tel:${esc(m.phone)}">${esc(m.phone)}</a>` : '—'}</dd><dt>Adresse</dt><dd>${esc(m.address || '—')}</dd><dt>Ville</dt><dd>${esc((m.zip || '') + ' ' + (m.city || ''))}</dd><dt>Pays</dt><dd>${esc(m.country || '—')}</dd></dl></div></section>
+        <section class="panel"><div class="panel-head"><h2>Note interne</h2></div><div class="panel-body stack"><textarea class="input" data-note style="min-height:100px" placeholder="Ex. a gagné le pack collector, fan depuis le début…">${esc(D.clientNotes[m.key] || '')}</textarea><button class="btn btn--sm" type="button" data-savenote style="width:max-content">Enregistrer la note</button></div></section>
+      </div></div>`;
+    $('[data-write]', c).addEventListener('click', () => composer({ email: m.key }));
+    $('[data-savenote]', c).addEventListener('click', () => { D.clientNotes[m.key] = $('[data-note]', c).value; save('Note enregistrée'); });
+    bindOrderRows(c);
+  }
 
-  /* ================= PROMOS ================= */
+  /* ================= PROMOTIONS & CODES ================= */
+  const scopeLabel = (r) => {
+    if (!r.scope || r.scope === 'all') return 'Tout le site';
+    if (r.scope === 'category') return 'Catégorie : ' + r.target;
+    if (r.scope === 'type') return 'Type : ' + r.target;
+    const p = D.products.find((x) => x.id === r.target); return 'Produit : ' + (p ? p.name : '—');
+  };
+  const valueLabel = (r) => (r.type === 'percent' ? '−' + r.value + ' %' : '−' + money(r.value));
+  const ruleState = (r) => (!r.active ? ['cache', 'Désactivée'] : S.live(r) ? ['ok', 'En cours'] : (r.start && Date.now() < +new Date(r.start) ? ['low', 'Programmée'] : ['cache', 'Terminée']));
+  function scopeFields(r) {
+    const cats = [...new Set(D.products.map((p) => p.category))], types = [...new Set(D.products.map((p) => p.type).filter(Boolean))];
+    return `<div class="field"><label for="rsc">S’applique à</label><select id="rsc" name="scope">
+        <option value="all"${(r.scope || 'all') === 'all' ? ' selected' : ''}>Tout le site</option><option value="category"${r.scope === 'category' ? ' selected' : ''}>Une catégorie</option>
+        <option value="type"${r.scope === 'type' ? ' selected' : ''}>Un type de produit</option><option value="product"${r.scope === 'product' ? ' selected' : ''}>Un seul produit</option></select></div>
+      <div class="field" data-t="category"><label for="rtc">Catégorie</label><select id="rtc" name="t_category">${cats.map((x) => `<option${r.target === x ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select></div>
+      <div class="field" data-t="type"><label for="rtt">Type</label><select id="rtt" name="t_type">${types.map((x) => `<option${r.target === x ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select></div>
+      <div class="field" data-t="product"><label for="rtp">Produit</label><select id="rtp" name="t_product">${D.products.map((p) => `<option value="${p.id}"${r.target === p.id ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>`;
+  }
+  function bindScope(form) {
+    const sync = () => { const v = form.scope.value; $$('[data-t]', form).forEach((f) => (f.hidden = f.dataset.t !== v)); };
+    form.scope.addEventListener('change', sync); sync();
+  }
+  const readScope = (f) => ({ scope: f.scope, target: f.scope === 'all' ? '' : f['t_' + f.scope] });
+
+  function ruleEditor(kind, idx) {
+    const isCode = kind === 'code';
+    const list = isCode ? D.promos : (D.promotions = D.promotions || []);
+    const r = idx != null ? clone(list[idx]) : (isCode ? { code: '', type: 'percent', value: 10, scope: 'all', target: '', active: true, uses: 0, note: '', start: '', end: '' } : { id: S.uid('pr'), name: '', type: 'percent', value: 20, scope: 'all', target: '', active: true, start: '', end: '', banner: true, bannerText: '' });
+    const dlg = document.createElement('dialog'); dlg.className = 'confirm'; dlg.style.width = 'min(560px, calc(100vw - 32px))';
+    dlg.innerHTML = `<h3 style="font-family:var(--f-display);font-weight:900;text-transform:uppercase;font-size:2rem">${idx != null ? 'Modifier' : 'Nouvelle'} ${isCode ? 'code promo' : 'promotion'}</h3>
+      <form class="stack" style="gap:14px">
+        ${isCode ? `<div class="field"><label for="rc">Code à saisir</label><input id="rc" name="code" value="${esc(r.code)}" style="text-transform:uppercase" placeholder="Ex. DIMANCHE15" required></div>`
+          : `<div class="field"><label for="rn">Nom de la promo</label><input id="rn" name="name" value="${esc(r.name)}" placeholder="Ex. Black Friday" required></div>`}
+        <div class="grid-2"><div class="field"><label for="rt">Remise</label><select id="rt" name="type"><option value="percent"${r.type === 'percent' ? ' selected' : ''}>Pourcentage (%)</option><option value="fixed"${r.type === 'fixed' ? ' selected' : ''}>Montant (€)</option></select></div>
+          <div class="field"><label for="rv">Valeur</label><input id="rv" name="value" inputmode="decimal" value="${esc(r.value)}" required></div></div>
+        ${scopeFields(r)}
+        <div class="grid-2"><div class="field"><label for="rs">Début (facultatif)</label><input id="rs" type="date" name="start" value="${esc(r.start || '')}"></div><div class="field"><label for="re">Fin (facultatif)</label><input id="re" type="date" name="end" value="${esc(r.end || '')}"></div></div>
+        ${isCode ? `<div class="field"><label for="rno">Note</label><input id="rno" name="note" value="${esc(r.note || '')}" placeholder="Pour qui, pour quoi"></div>`
+          : `<label class="switch"><input type="checkbox" name="banner"${r.banner ? ' checked' : ''}> Annoncer en bandeau rouge en haut du site (promo « tout le site »)</label>
+             <div class="field"><label for="rbt">Texte du bandeau</label><input id="rbt" name="bannerText" value="${esc(r.bannerText || '')}" placeholder="Ex. −25 % sur tout le site jusqu’à dimanche"></div>`}
+        <label class="switch"><input type="checkbox" name="active"${r.active ? ' checked' : ''}> Active</label>
+        <div class="actions" style="justify-content:flex-end"><button class="btn" type="button" data-x>Annuler</button><button class="btn btn--primary" type="submit">Enregistrer</button></div></form>`;
+    document.body.append(dlg); dlg.showModal();
+    const form = $('form', dlg); bindScope(form);
+    $('[data-x]', dlg).addEventListener('click', () => { dlg.close(); dlg.remove(); });
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const f = Object.fromEntries(new FormData(form));
+      const value = +String(f.value).replace(',', '.');
+      if (!(value > 0) || (f.type === 'percent' && value > 100)) return toast('Indique une remise valide (entre 1 et 100 % ou un montant).', true);
+      Object.assign(r, { type: f.type, value, start: f.start, end: f.end, active: !!f.active }, readScope(f));
+      if (isCode) {
+        r.code = String(f.code || '').trim().toUpperCase().replace(/\s+/g, ''); r.note = f.note;
+        if (!r.code) return toast('Indique le code.', true);
+        if (D.promos.some((p, i) => p.code === r.code && i !== idx)) return toast('Ce code existe déjà.', true);
+      } else {
+        r.name = String(f.name || '').trim() || valueLabel(r) + ' — ' + scopeLabel(r); r.banner = !!f.banner; r.bannerText = f.bannerText;
+      }
+      if (idx != null) list[idx] = r; else list.unshift(r);
+      save(isCode ? 'Code enregistré' : 'Promotion enregistrée'); dlg.close(); dlg.remove(); route();
+    });
+  }
+
   views.promos = (c) => {
+    const P = D.promotions = D.promotions || [];
+    c.innerHTML = head('Promotions', 'Remises automatiques sur le site, et codes promo à saisir au paiement.', `<button class="btn" type="button" data-newcode>${I('tag')} Nouveau code</button><button class="btn btn--primary" type="button" data-newpromo>${I('plus')} Nouvelle promotion</button>`)
+      + `<div class="stack">
+        <section class="panel"><div class="panel-head"><div><h2>Promotions automatiques</h2><p>Le prix barré et le badge s’affichent tout seuls sur le site. Si plusieurs promos touchent un produit, la plus forte gagne.</p></div></div>
+          <div class="table-wrap">${P.length ? `<table class="t"><thead><tr><th>Promotion</th><th>Remise</th><th>Portée</th><th>Période</th><th>État</th><th>Active</th><th></th></tr></thead><tbody>
+          ${P.map((r, i) => { const st = ruleState(r); return `<tr data-edit="${i}"><td><b>${esc(r.name)}</b>${r.banner && (r.scope || 'all') === 'all' ? ' <span class="tag">bandeau</span>' : ''}</td><td><b>${valueLabel(r)}</b></td><td>${esc(scopeLabel(r))}</td><td>${r.start || r.end ? (r.start ? fmtDate(r.start) : '…') + ' → ' + (r.end ? fmtDate(r.end) : '…') : 'Sans limite'}</td><td>${pill(st[0], st[1])}</td>
+            <td><label class="switch" data-stop><input type="checkbox" data-pact="${i}"${r.active ? ' checked' : ''}><span class="sr-only">Active</span></label></td><td class="num"><button class="btn btn--sm btn--ghost btn--danger" data-prm="${i}" aria-label="Supprimer">${I('trash')}</button></td></tr>`; }).join('')}</tbody></table>`
+          : '<div class="empty-state"><b>Aucune promotion</b>Crée une remise sur tout le site, une catégorie ou un produit.</div>'}</div></section>
+        <section class="panel"><div class="panel-head"><div><h2>Codes promo</h2><p>Le client tape le code au moment de payer.</p></div></div>
+          <div class="table-wrap">${D.promos.length ? `<table class="t"><thead><tr><th>Code</th><th>Remise</th><th>Portée</th><th>Note</th><th class="num">Utilisations</th><th>Actif</th><th></th></tr></thead><tbody>
+          ${D.promos.map((r, i) => `<tr data-cedit="${i}"><td><b>${esc(r.code)}</b></td><td><b>${valueLabel(r)}</b></td><td>${esc(scopeLabel(r))}</td><td>${esc(r.note || '')}</td><td class="num">${r.uses || 0}</td>
+            <td><label class="switch" data-stop><input type="checkbox" data-cact="${i}"${r.active ? ' checked' : ''}><span class="sr-only">Actif</span></label></td><td class="num"><button class="btn btn--sm btn--ghost btn--danger" data-crm="${i}" aria-label="Supprimer">${I('trash')}</button></td></tr>`).join('')}</tbody></table>`
+          : '<div class="empty-state"><b>Aucun code</b>Crée ton premier code promo.</div>'}</div></section></div>`;
+    $('[data-newpromo]', c).addEventListener('click', () => ruleEditor('promo'));
+    $('[data-newcode]', c).addEventListener('click', () => ruleEditor('code'));
+    c.addEventListener('change', (e) => {
+      const a = e.target.closest('[data-pact]'), b = e.target.closest('[data-cact]');
+      if (a) { P[+a.dataset.pact].active = a.checked; save(a.checked ? 'Promotion activée' : 'Promotion désactivée'); route(); }
+      if (b) { D.promos[+b.dataset.cact].active = b.checked; save(b.checked ? 'Code activé' : 'Code désactivé'); }
+    });
+    c.addEventListener('click', async (e) => {
+      if (e.target.closest('[data-stop]')) return;
+      const pr = e.target.closest('[data-prm]'), cr = e.target.closest('[data-crm]');
+      if (pr) { if (await confirmBox('Supprimer cette promotion ?', 'Les prix reviennent à la normale.', 'Supprimer')) { P.splice(+pr.dataset.prm, 1); save('Promotion supprimée'); route(); } return; }
+      if (cr) { if (await confirmBox('Supprimer ce code ?', 'Il ne pourra plus être utilisé.', 'Supprimer')) { D.promos.splice(+cr.dataset.crm, 1); save('Code supprimé'); route(); } return; }
+      const ed = e.target.closest('tr[data-edit]'), ce = e.target.closest('tr[data-cedit]');
+      if (ed) ruleEditor('promo', +ed.dataset.edit);
+      if (ce) ruleEditor('code', +ce.dataset.cedit);
+    });
+  };
+
+  /* ================= RÉGLAGE D'UNE PHOTO (cadrage, zoom) ================= */
+  function adjustImage(url, opts) {
+    opts = opts || {};
+    if (!url) return;
+    D.imgMeta = D.imgMeta || {};
+    const m = Object.assign({ x: 50, y: 50, z: 1, fit: 'cover' }, D.imgMeta[url] || {});
+    const src = !/^(https?:|data:|\.\.\/)/.test(url) ? '../' + url : url;
+    const ratio = opts.ratio || '1 / 1';
+    const dlg = document.createElement('dialog'); dlg.className = 'confirm'; dlg.style.width = 'min(760px, calc(100vw - 32px))';
+    dlg.innerHTML = `<h3 style="font-family:var(--f-display);font-weight:900;text-transform:uppercase;font-size:2rem">Régler la photo</h3>
+      <p>Clique ou fais glisser sur l’image pour choisir le point à garder au centre, puis zoome.</p>
+      <div class="adj">
+        <div class="adj-src" data-src><img src="${esc(src)}" alt="" draggable="false"><span class="adj-dot" data-dot></span></div>
+        <div class="stack" style="gap:12px">
+          <div class="field"><span class="label">Aperçu</span>
+            <div class="seg" role="group" aria-label="Format"><button type="button" data-r="1 / 1" aria-pressed="${ratio === '1 / 1'}">Carré</button><button type="button" data-r="4 / 5" aria-pressed="${ratio === '4 / 5'}">Portrait</button><button type="button" data-r="16 / 10" aria-pressed="${ratio === '16 / 10'}">Paysage</button></div>
+            <div class="adj-prev" data-prev style="aspect-ratio:${ratio}"><img src="${esc(src)}" alt=""></div></div>
+          <div class="field"><label for="az">Zoom <b data-zv>${(+m.z).toFixed(1)}×</b></label><input id="az" type="range" min="1" max="3" step="0.05" value="${m.z}" data-z></div>
+          <label class="switch"><input type="checkbox" data-fit${m.fit === 'contain' ? ' checked' : ''}> Afficher la photo entière (sans recadrer)</label>
+          <button class="btn btn--sm" type="button" data-reset style="width:max-content">Remettre par défaut</button>
+        </div></div>
+      <div class="actions" style="justify-content:flex-end;margin-top:16px"><button class="btn" type="button" data-x>Annuler</button><button class="btn btn--primary" type="button" data-ok>Appliquer</button></div>`;
+    document.body.append(dlg); dlg.showModal();
+    const prev = $('[data-prev] img', dlg), dot = $('[data-dot]', dlg), box = $('[data-src]', dlg);
+    const paint = () => {
+      prev.style.objectPosition = `${m.x}% ${m.y}%`; prev.style.objectFit = m.fit; prev.style.transform = `scale(${m.z})`; prev.style.transformOrigin = `${m.x}% ${m.y}%`;
+      dot.style.left = m.x + '%'; dot.style.top = m.y + '%'; $('[data-zv]', dlg).textContent = (+m.z).toFixed(1) + '×';
+    };
+    let drag = false;
+    const pick = (e) => { const r = box.getBoundingClientRect(); m.x = Math.round(Math.max(0, Math.min(100, (e.clientX - r.left) / r.width * 100))); m.y = Math.round(Math.max(0, Math.min(100, (e.clientY - r.top) / r.height * 100))); paint(); };
+    box.addEventListener('pointerdown', (e) => { drag = true; box.setPointerCapture(e.pointerId); pick(e); });
+    box.addEventListener('pointermove', (e) => { if (drag) pick(e); });
+    box.addEventListener('pointerup', () => (drag = false));
+    $('[data-z]', dlg).addEventListener('input', (e) => { m.z = +e.target.value; paint(); });
+    $('[data-fit]', dlg).addEventListener('change', (e) => { m.fit = e.target.checked ? 'contain' : 'cover'; paint(); });
+    $$('[data-r]', dlg).forEach((b) => b.addEventListener('click', () => { $('[data-prev]', dlg).style.aspectRatio = b.dataset.r; $$('[data-r]', dlg).forEach((x) => x.setAttribute('aria-pressed', x === b)); }));
+    $('[data-reset]', dlg).addEventListener('click', () => { Object.assign(m, { x: 50, y: 50, z: 1, fit: 'cover' }); $('[data-z]', dlg).value = 1; $('[data-fit]', dlg).checked = false; paint(); });
+    $('[data-x]', dlg).addEventListener('click', () => { dlg.close(); dlg.remove(); });
+    $('[data-ok]', dlg).addEventListener('click', () => {
+      const isDefault = m.x === 50 && m.y === 50 && m.z === 1 && m.fit === 'cover';
+      if (isDefault) delete D.imgMeta[url]; else D.imgMeta[url] = { x: m.x, y: m.y, z: +m.z, fit: m.fit };
+      save('Photo réglée'); dlg.close(); dlg.remove(); opts.onDone && opts.onDone();
+    });
+    paint();
+  }
+
+  /* ================= SECTIONS & BLOCS ================= */
+  const PAGES = { home: 'Accueil', shop: 'Boutique', clips: 'Clips', magazine: 'L’actu', about: 'À propos', contact: 'Contact' };
+  const PAGE_SECTIONS = {
+    shop: [['head', 'En-tête « Shop »'], ['grid', 'Filtres et produits']],
+    clips: [['head', 'En-tête « Les derniers clips »'], ['clip', 'Lecteur de clips'], ['products', 'Produits'], ['freestyles', 'Freestyle sunday']],
+    magazine: [['head', 'En-tête « L’actu »'], ['list', 'Liste des articles']],
+    about: [['head', 'En-tête « Fucstyle »'], ['stats', 'Chiffres'], ['bio', 'Bio'], ['inde', 'Rap indé / Bercail'], ['discs', 'Discographie'], ['dates', 'Dates de concert']],
+    contact: [['form', 'Formulaire de contact']]
+  };
+  const HOME_SECTIONS = [['hero', 'Vidéo d’entrée'], ['ticker', 'Bande défilante rouge'], ['shop', 'Boutique (produits)'], ['clip', 'Dernier clip'], ['bio', 'Bio Fucstyle'], ['freestyles', 'Freestyle sunday'], ['stats', 'Chiffres'], ['inde', 'Rap indé / Bercail'], ['tiles', 'Tuiles Shop / Booking / Actus'], ['discs', 'Discographie'], ['mag', 'L’actu (derniers articles)'], ['contact', 'Formulaire de contact']];
+  const BLOCK_TYPES = { texte: 'Texte', 'image-texte': 'Image + texte', banniere: 'Grande bannière photo', galerie: 'Galerie photos', video: 'Vidéo YouTube', citation: 'Citation / punchline', produits: 'Sélection de produits', bouton: 'Appel à l’action' };
+  function layoutOf(pg) {
+    D.layout = D.layout || {}; D.blocks = D.blocks || [];
+    const blocks = D.blocks.filter((b) => (b.page || 'home') === pg);
+    let lay = D.layout[pg];
+    const secs = pg === 'home' ? HOME_SECTIONS : (PAGE_SECTIONS[pg] || []);
+    const base = secs.map(([id]) => ({ id }));
+    if (!lay) lay = base.concat(blocks.map((b) => ({ id: b.id })));
+    const ids = new Set(lay.map((x) => x.id));
+    base.concat(blocks.map((b) => ({ id: b.id }))).forEach((x) => { if (!ids.has(x.id)) lay.push(x); });
+    lay = lay.filter((x) => secs.some(([id]) => id === x.id) || blocks.some((b) => b.id === x.id));
+    return (D.layout[pg] = lay);
+  }
+  views.sections = (c, args) => {
+    const pg = PAGES[args[0]] ? args[0] : 'home';
+    const lay = layoutOf(pg);
+    const secs = pg === 'home' ? HOME_SECTIONS : (PAGE_SECTIONS[pg] || []);
+    const label = (it) => { const s = secs.find(([id]) => id === it.id); if (s) return [s[1], 'Section du site']; const b = D.blocks.find((x) => x.id === it.id); return [b ? (b.title || BLOCK_TYPES[b.type]) : '—', 'Bloc : ' + (b ? BLOCK_TYPES[b.type] : '')]; };
+    const pageFile = { home: 'index.html', shop: 'boutique.html', clips: 'clips.html', magazine: 'magazine.html', about: 'a-propos.html', contact: 'contact.html' }[pg];
+    c.innerHTML = head('Mise en page', 'Choisis une page : réorganise ses sections, masque-les, change leurs couleurs, ajoute des blocs.', `<a class="btn" href="../${pageFile}" target="_blank" rel="noopener">${I('eye')} Voir la page</a><button class="btn btn--primary" type="button" data-add>${I('plus')} Ajouter un bloc</button>`)
+      + `<div class="chipset" style="margin-bottom:18px">${Object.entries(PAGES).map(([k, v]) => `<a class="btn btn--sm${k === pg ? ' btn--primary' : ''}" href="#/sections/${k}">${v}</a>`).join('')}</div>
+      <section class="panel"><div class="panel-head"><div><h2>${PAGES[pg]}</h2><p>De haut en bas, dans l’ordre d’affichage. Les blocs ajoutés peuvent être placés n’importe où.</p></div></div>
+        <div class="panel-body list-edit">${lay.length ? lay.map((it, i) => { const [t, sub] = label(it); const isBlk = !secs.some(([id]) => id === it.id); const st = ((D.sectionStyle || {})[pg] || {})[it.id]; return `<div class="list-item sec-row${it.hidden ? ' is-hidden' : ''}" style="grid-template-columns:36px minmax(0,1fr) auto">
+          <span class="sec-num">${i + 1}</span><div><b>${esc(t)}</b><br><small style="color:var(--muted)">${esc(sub)}${it.hidden ? ' — masquée' : ''}</small></div>
+          <div class="row-actions">${i ? `<button class="btn btn--icon btn--sm" type="button" data-up="${i}" aria-label="Monter">↑</button>` : ''}${i < lay.length - 1 ? `<button class="btn btn--icon btn--sm" type="button" data-down="${i}" aria-label="Descendre">↓</button>` : ''}
+            <button class="btn btn--sm" type="button" data-style="${esc(it.id)}">${st ? '<span class="swatch" style="background:' + esc(st.bg || '#fff') + '"></span>' : ''}Couleurs</button>
+            <button class="btn btn--sm" type="button" data-hide="${i}">${it.hidden ? 'Afficher' : 'Masquer'}</button>
+            ${isBlk ? `<button class="btn btn--sm" type="button" data-edit="${esc(it.id)}">Modifier</button><button class="btn btn--icon btn--sm btn--danger" type="button" data-del="${esc(it.id)}" aria-label="Supprimer">${I('trash')}</button>` : `<a class="btn btn--sm" href="#/site">Textes</a>`}</div></div>`; }).join('')
+          : '<div class="empty-state"><b>Aucun bloc sur cette page</b>Ajoute une bannière, un texte, une galerie, une vidéo…</div>'}</div></section>`;
+    const mv = (i, j) => { [lay[i], lay[j]] = [lay[j], lay[i]]; save('Ordre enregistré'); route(); };
+    $$('[data-up]', c).forEach((b) => b.addEventListener('click', () => mv(+b.dataset.up, +b.dataset.up - 1)));
+    $$('[data-down]', c).forEach((b) => b.addEventListener('click', () => mv(+b.dataset.down, +b.dataset.down + 1)));
+    $$('[data-hide]', c).forEach((b) => b.addEventListener('click', () => { const it = lay[+b.dataset.hide]; it.hidden = !it.hidden; save(it.hidden ? 'Section masquée' : 'Section affichée'); route(); }));
+    $$('[data-edit]', c).forEach((b) => b.addEventListener('click', () => blockEditor(pg, b.dataset.edit)));
+    $$('[data-del]', c).forEach((b) => b.addEventListener('click', async () => { if (await confirmBox('Supprimer ce bloc ?', 'Il sera retiré de la page.', 'Supprimer')) { D.blocks = D.blocks.filter((x) => x.id !== b.dataset.del); D.layout[pg] = lay.filter((x) => x.id !== b.dataset.del); save('Bloc supprimé'); route(); } }));
+    $('[data-add]', c).addEventListener('click', () => blockEditor(pg, null));
+    $$('[data-style]', c).forEach((b) => b.addEventListener('click', () => styleEditor(pg, b.dataset.style, label({ id: b.dataset.style })[0])));
+  };
+
+  /* couleurs d'une section : fond, texte, titres, image de fond, espacement */
+  function styleEditor(pg, id, name) {
+    D.sectionStyle = D.sectionStyle || {}; D.sectionStyle[pg] = D.sectionStyle[pg] || {};
+    const st = Object.assign({ bg: '', color: '', title: '', image: '', overlay: 50, pad: '' }, D.sectionStyle[pg][id] || {});
+    const dlg = document.createElement('dialog'); dlg.className = 'confirm'; dlg.style.width = 'min(560px, calc(100vw - 32px))';
+    const col = (k, l) => `<div class="field"><label>${l}</label><div style="display:flex;gap:8px;align-items:center"><input type="color" data-c="${k}" value="${esc(st[k] || '#000000')}" style="width:64px"><label class="switch" style="font-weight:400"><input type="checkbox" data-on="${k}"${st[k] ? ' checked' : ''}> Personnaliser</label></div></div>`;
+    dlg.innerHTML = `<h3 style="font-family:var(--f-display);font-weight:900;text-transform:uppercase;font-size:2rem">Couleurs — ${esc(name)}</h3>
+      <div class="stack" style="gap:14px">
+        <div class="grid-3">${col('bg', 'Fond')}${col('color', 'Texte')}${col('title', 'Titres')}</div>
+        <div class="field"><span class="label">Image de fond (facultatif)</span><div data-img></div></div>
+        <div class="field"><label for="ov">Assombrir l’image <b data-ovv>${st.overlay} %</b></label><input id="ov" type="range" min="0" max="90" step="5" value="${st.overlay}" data-ov></div>
+        <div class="field"><label for="pd">Espacement</label><select id="pd" data-pad><option value="">Normal</option><option value="compact"${st.pad === 'compact' ? ' selected' : ''}>Serré</option><option value="large"${st.pad === 'large' ? ' selected' : ''}>Aéré</option></select></div>
+        <div class="sty-prev" data-sprev><b class="display">Titre de section</b><p>Le texte de la section s’affiche comme ça.</p></div>
+        <div class="actions" style="justify-content:space-between"><button class="btn btn--danger" type="button" data-reset>Couleurs d’origine</button><span><button class="btn" type="button" data-x>Annuler</button> <button class="btn btn--primary" type="button" data-ok>Appliquer</button></span></div></div>`;
+    document.body.append(dlg); dlg.showModal();
+    const paint = () => { const pv = $('[data-sprev]', dlg); const img = st.image ? (/^(https?:|data:)/.test(st.image) ? st.image : '../' + st.image) : '';
+      pv.style.background = img ? `linear-gradient(rgba(0,0,0,${st.overlay / 100}),rgba(0,0,0,${st.overlay / 100})), url('${img}') center/cover` : (st.bg || '#b9b4aa');
+      pv.style.color = st.color || (img ? '#fff' : '#000'); $('b', pv).style.color = st.title || 'inherit'; };
+    $$('[data-c]', dlg).forEach((i) => i.addEventListener('input', () => { st[i.dataset.c] = i.value; $(`[data-on="${i.dataset.c}"]`, dlg).checked = true; paint(); }));
+    $$('[data-on]', dlg).forEach((i) => i.addEventListener('change', () => { st[i.dataset.on] = i.checked ? $(`[data-c="${i.dataset.on}"]`, dlg).value : ''; paint(); }));
+    imgPicker($('[data-img]', dlg), st.image, (u) => { st.image = u; paint(); });
+    $('[data-ov]', dlg).addEventListener('input', (e) => { st.overlay = +e.target.value; $('[data-ovv]', dlg).textContent = st.overlay + ' %'; paint(); });
+    $('[data-pad]', dlg).addEventListener('change', (e) => (st.pad = e.target.value));
+    $('[data-x]', dlg).addEventListener('click', () => { dlg.close(); dlg.remove(); });
+    $('[data-reset]', dlg).addEventListener('click', () => { delete D.sectionStyle[pg][id]; save('Couleurs d’origine remises'); dlg.close(); dlg.remove(); route(); });
+    $('[data-ok]', dlg).addEventListener('click', () => { D.sectionStyle[pg][id] = st; save('Couleurs de la section enregistrées'); dlg.close(); dlg.remove(); route(); });
+    paint();
+  }
+
+  function blockEditor(pg, id) {
+    const orig = id && D.blocks.find((b) => b.id === id);
+    const b = orig ? clone(orig) : { id: S.uid('blk'), page: pg, type: 'image-texte', title: '', text: '', image: '', images: [], side: 'left', align: 'left', bg: 'wall', button: '', link: '', video: '', category: '', max: 4 };
+    const cats = [...new Set(D.products.map((p) => p.category))];
+    const dlg = document.createElement('dialog'); dlg.className = 'pmodal';
+    dlg.innerHTML = `<div class="pm-head"><div><h2 class="display">${orig ? 'Modifier le bloc' : 'Nouveau bloc'}</h2><p>${PAGES[pg]}</p></div><button class="btn btn--icon btn--ghost" type="button" data-x aria-label="Fermer">✕</button></div>
+      <div class="pm-body"><div class="pm-form" style="padding-top:18px">
+        <div class="field"><span class="label">Type de bloc</span><div class="chipset" data-types>${Object.entries(BLOCK_TYPES).map(([k, v]) => `<button type="button" data-type="${k}" aria-pressed="${b.type === k}">${v}</button>`).join('')}</div></div>
+        <div class="field" data-f="title"><label for="bt">Titre</label><input id="bt" data-k="title"></div>
+        <div class="field" data-f="text"><label for="bx">Texte</label><textarea id="bx" data-k="text" style="min-height:130px"></textarea><span class="hint">## intertitre, **gras**, - liste, [lien](https://…)</span></div>
+        <div class="field" data-f="image"><span class="label">Photo</span><div data-img></div></div>
+        <div class="field" data-f="images"><span class="label">Photos de la galerie</span><div class="gallery" data-gal></div><label class="dropzone"><input type="file" accept="image/*" multiple hidden data-galadd><b>Ajouter des photos</b></label></div>
+        <div class="field" data-f="video"><label for="bv">Lien YouTube</label><input id="bv" data-k="video" placeholder="https://www.youtube.com/watch?v=…"></div>
+        <div class="grid-2" data-f="products"><div class="field"><label for="bc">Catégorie</label><select id="bc" data-k="category"><option value="">Toutes</option>${cats.map((x) => `<option>${esc(x)}</option>`).join('')}</select></div><div class="field"><label for="bm">Nombre max.</label><input id="bm" data-k="max" data-num type="number" min="1" max="12"></div></div>
+        <div class="grid-2" data-f="button"><div class="field"><label for="bb">Texte du bouton</label><input id="bb" data-k="button" placeholder="Ex. Voir la boutique"></div><div class="field"><label for="bl">Lien du bouton</label><input id="bl" data-k="link" placeholder="boutique.html ou https://…"></div></div>
+        <div class="grid-3">
+          <div class="field"><label for="bg">Fond</label><select id="bg" data-k="bg"><option value="wall">Béton</option><option value="paper">Papier clair</option><option value="ink">Noir</option><option value="blood">Rouge</option></select></div>
+          <div class="field" data-f="align"><label for="ba">Alignement</label><select id="ba" data-k="align"><option value="left">À gauche</option><option value="center">Centré</option></select></div>
+          <div class="field" data-f="side"><label for="bs">Photo</label><select id="bs" data-k="side"><option value="left">À gauche</option><option value="right">À droite</option></select></div></div>
+      </div>
+      <aside class="pm-preview"><div class="pm-pv-bar"><span>Aperçu</span><div class="seg" role="group" aria-label="Écran"><button type="button" data-w="d" aria-pressed="true">Ordi</button><button type="button" data-w="m">Mobile</button></div></div><div class="pm-frame"><iframe title="Aperçu du bloc" data-frame></iframe></div></aside></div>
+      <div class="pm-foot"><span class="note"></span><button class="btn" type="button" data-x>Annuler</button><button class="btn btn--primary" type="button" data-save>Enregistrer le bloc</button></div>`;
+    document.body.append(dlg); dlg.showModal();
+    const FIELDS = { texte: ['title', 'text', 'button', 'align'], 'image-texte': ['title', 'text', 'image', 'button', 'side'], banniere: ['title', 'text', 'image', 'button', 'align'], galerie: ['title', 'text', 'images', 'button', 'align'], video: ['title', 'text', 'video', 'button', 'align'], citation: ['title', 'text', 'button'], produits: ['title', 'text', 'products'], bouton: ['title', 'text', 'button', 'align'] };
+    const show = () => { $$('[data-f]', dlg).forEach((f) => (f.hidden = !FIELDS[b.type].includes(f.dataset.f))); $('label[for=bt]', dlg).textContent = b.type === 'citation' ? 'Auteur' : 'Titre'; $('label[for=bx]', dlg).textContent = b.type === 'citation' ? 'Citation' : 'Texte'; };
+    let t = null; const frame = $('[data-frame]', dlg);
+    const preview = () => { clearTimeout(t); t = setTimeout(() => {
+      const tmp = clone(D); tmp.blocks = [Object.assign(clone(b), { page: '__pv' })]; tmp.layout = {};
+      frame.srcdoc = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="${esc(new URL('../', location.href).href)}">
+        <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700&family=Big+Shoulders+Stencil+Display:wght@800;900&display=swap" rel="stylesheet"><link rel="stylesheet" href="assets/css/site.css">
+        <style>.site-header,.site-footer,.drawer,.drawer-backdrop,.toast,.announce,.music-btn{display:none!important}a{pointer-events:none}</style></head>
+        <body data-page="__pv"><main></main><script>window.__FUC_PREVIEW=${JSON.stringify(tmp).replace(/</g, '\\u003c')};<\/script><script src="assets/js/data.js"><\/script><script src="assets/js/posts.js"><\/script><script src="assets/js/store.js"><\/script><script src="assets/js/site.js"><\/script></body></html>`;
+    }, 200); };
+    bindFields(dlg, b, () => preview());
+    $('[data-types]', dlg).addEventListener('click', (e) => { const x = e.target.closest('[data-type]'); if (!x) return; b.type = x.dataset.type; $$('[data-type]', dlg).forEach((y) => y.setAttribute('aria-pressed', y === x)); show(); preview(); });
+    const pickerHost = $('[data-img]', dlg);
+    imgPicker(pickerHost, b.image, (u) => { b.image = u; preview(); }, { adjust: true, onAdjusted: preview });
+    const drawGal = () => { $('[data-gal]', dlg).innerHTML = (b.images || []).map((u, i) => `<div class="gimg"><img src="${esc(u)}" alt=""><div class="tools"><button type="button" data-gadj="${i}" title="Régler">${I('eye')}</button><button type="button" class="del" data-grm="${i}" title="Supprimer">${I('trash')}</button></div></div>`).join(''); };
+    drawGal();
+    $('[data-gal]', dlg).addEventListener('click', (e) => { const r = e.target.closest('[data-grm]'), a = e.target.closest('[data-gadj]'); if (r) { b.images.splice(+r.dataset.grm, 1); drawGal(); preview(); } if (a) adjustImage(b.images[+a.dataset.gadj], { onDone: preview }); });
+    $('[data-galadd]', dlg).addEventListener('change', async (e) => { b.images = b.images || []; for (const f of e.target.files) { try { b.images.push(await readImage(f, 1200)); } catch (er) { toast(er.message, true); } } drawGal(); preview(); });
+    $$('[data-w]', dlg).forEach((x) => x.addEventListener('click', () => { $$('[data-w]', dlg).forEach((y) => y.setAttribute('aria-pressed', y === x)); $('.pm-frame', dlg).classList.toggle('mobile', x.dataset.w === 'm'); }));
+    $$('[data-x]', dlg).forEach((x) => x.addEventListener('click', () => { dlg.close(); dlg.remove(); }));
+    $('[data-save]', dlg).addEventListener('click', () => {
+      if (b.type === 'image-texte' || b.type === 'banniere') { if (!b.image) return toast('Ajoute une photo pour ce bloc.', true); }
+      if (b.type === 'video' && !/([\w-]{11})/.test(b.video || '')) return toast('Colle un lien YouTube valide.', true);
+      if (!b.title && !b.text && !b.image && !(b.images || []).length && b.type !== 'produits') return toast('Ajoute au moins un titre ou un texte.', true);
+      const i = D.blocks.findIndex((x) => x.id === b.id);
+      if (i >= 0) D.blocks[i] = b; else { D.blocks.push(b); layoutOf(pg); }
+      save('Bloc enregistré'); dlg.close(); dlg.remove(); route();
+    });
+    show(); preview();
+  }
+
+  /* ================= LIVRAISON ================= */
+  views.livraison = (c) => {
+    const zs = clone(S.zones(D));
     const draw = () => {
-      c.innerHTML = head('Codes promo', 'Les clients les saisissent au moment de payer.')
-        + `<div class="cols"><section class="panel"><div class="table-wrap">${D.promos.length ? `<table class="t matrix"><thead><tr><th>Code</th><th>Remise</th><th>Note</th><th class="num">Utilisations</th><th>Actif</th><th></th></tr></thead><tbody>
-          ${D.promos.map((p, i) => `<tr><td><b>${esc(p.code)}</b></td><td>${p.type === 'percent' ? p.value + ' %' : money(p.value)}</td><td>${esc(p.note || '')}</td><td class="num">${p.uses || 0}</td>
-            <td><label class="switch"><input type="checkbox" data-act="${i}"${p.active ? ' checked' : ''}><span class="sr-only">Actif</span></label></td><td class="num"><button class="btn btn--sm btn--ghost btn--danger" data-rm="${i}" aria-label="Supprimer">${I('trash')}</button></td></tr>`).join('')}</tbody></table>`
-          : '<div class="empty-state"><b>Aucun code</b>Crée ton premier code à droite.</div>'}</div></section>
-        <section class="panel"><div class="panel-head"><h2>Nouveau code</h2></div><form class="panel-body stack" data-new>
-          <div class="field"><label for="pcode">Code</label><input id="pcode" name="code" placeholder="Ex. DIMANCHE15" required style="text-transform:uppercase"></div>
-          <div class="grid-2"><div class="field"><label for="ptype">Type</label><select id="ptype" name="type"><option value="percent">Pourcentage</option><option value="fixed">Montant fixe</option></select></div>
-          <div class="field"><label for="pval">Valeur</label><input id="pval" name="value" inputmode="decimal" required></div></div>
-          <div class="field"><label for="pnote">Note</label><input id="pnote" name="note" placeholder="Pour qui, pour quoi"></div>
-          <button class="btn btn--primary" type="submit">Créer le code</button></form></section></div>`;
-      $$('[data-act]', c).forEach((i) => i.addEventListener('change', () => { D.promos[+i.dataset.act].active = i.checked; save(i.checked ? 'Code activé' : 'Code désactivé'); }));
-      $$('[data-rm]', c).forEach((b) => b.addEventListener('click', async () => { if (await confirmBox('Supprimer ce code ?', 'Il ne pourra plus être utilisé.', 'Supprimer')) { D.promos.splice(+b.dataset.rm, 1); save('Code supprimé'); draw(); } }));
-      $('[data-new]', c).addEventListener('submit', (e) => {
-        e.preventDefault(); const f = Object.fromEntries(new FormData(e.target));
-        const code = f.code.trim().toUpperCase().replace(/\s+/g, ''), value = +String(f.value).replace(',', '.');
-        if (!code || !(value > 0)) return toast('Indique un code et une valeur supérieure à 0.', true);
-        if (D.promos.some((p) => p.code === code)) return toast('Ce code existe déjà.', true);
-        D.promos.push({ code, type: f.type, value, active: true, uses: 0, note: f.note }); save('Code ' + code + ' créé'); draw();
+      c.innerHTML = head('Livraison', 'Tes zones, tes tarifs, la livraison offerte et les délais affichés au client.', `<button class="btn btn--primary" type="button" data-add>${I('plus')} Ajouter une zone</button>`)
+        + `<div class="stack">${zs.map((z, i) => `<section class="panel"><div class="panel-head"><h2>${esc(z.name || 'Nouvelle zone')}</h2>${zs.length > 1 ? `<button class="btn btn--sm btn--danger" type="button" data-rm="${i}">${I('trash')} Supprimer</button>` : ''}</div><div class="panel-body stack">
+          <div class="grid-2"><div class="field"><label>Nom de la zone</label><input data-z="${i}" data-f="name" value="${esc(z.name)}"></div><div class="field"><label>Délai affiché</label><input data-z="${i}" data-f="delay" value="${esc(z.delay || '')}" placeholder="Ex. 2 à 4 jours ouvrés"></div></div>
+          <div class="grid-2"><div class="field"><label>Frais de port</label><div class="prefix"><input data-z="${i}" data-f="price" inputmode="decimal" value="${z.price}"><span>€</span></div></div>
+          <div class="field"><label>Offerte dès (0 = jamais)</label><div class="prefix"><input data-z="${i}" data-f="freeFrom" inputmode="decimal" value="${z.freeFrom}"><span>€</span></div></div></div>
+          <div class="field"><label>Pays (séparés par des virgules)</label><input data-z="${i}" data-f="countries" value="${esc(z.countries.join(', '))}"></div></div></section>`).join('')}</div>
+        <div class="savebar"><span class="note">Le client voit le tarif de sa zone dès qu’il choisit son pays.</span><button class="btn btn--primary" type="button" data-save>Enregistrer la livraison</button></div>`;
+      $$('[data-z]', c).forEach((inp) => inp.addEventListener('input', () => { const z = zs[+inp.dataset.z], f = inp.dataset.f; z[f] = f === 'countries' ? inp.value.split(',').map((x) => x.trim()).filter(Boolean) : (f === 'price' || f === 'freeFrom') ? +String(inp.value).replace(',', '.') || 0 : inp.value; dirty = true; }));
+      $$('[data-rm]', c).forEach((b) => b.addEventListener('click', () => { zs.splice(+b.dataset.rm, 1); draw(); dirty = true; }));
+      $('[data-add]', c).addEventListener('click', () => { zs.push({ id: S.uid('z'), name: 'Nouvelle zone', countries: [], price: 10, freeFrom: 0, delay: '' }); draw(); });
+      $('[data-save]', c).addEventListener('click', () => {
+        if (zs.some((z) => !z.countries.length)) return toast('Chaque zone doit avoir au moins un pays.', true);
+        D.shipping = { zones: zs }; dirty = false; save('Livraison enregistrée');
       });
     };
     draw();
+  };
+
+  /* ================= PAGES LÉGALES ================= */
+  const LEGAL = { cgv: ['Conditions générales de vente', 'cgv.html'], retours: ['Retours et remboursements', 'retours.html'], mentions: ['Mentions légales', 'mentions-legales.html'], confidentialite: ['Politique de confidentialité', 'confidentialite.html'] };
+  views.legal = (c, args) => {
+    const k = LEGAL[args[0]] ? args[0] : 'cgv';
+    D.legal = D.legal || clone(window.FUC_DEFAULTS.legal);
+    let txt = D.legal[k] || '';
+    const todo = (txt.match(/\[à compléter[^\]]*\]/g) || []).length;
+    c.innerHTML = head('Pages légales', 'Obligatoires pour vendre en ligne. Le client accepte les CGV et la politique de retour avant de payer.', `<a class="btn" href="../${LEGAL[k][1]}" target="_blank" rel="noopener">${I('eye')} Voir la page</a>`)
+      + `<div class="chipset" style="margin-bottom:18px">${Object.entries(LEGAL).map(([key, [n]]) => `<a class="btn btn--sm${key === k ? ' btn--primary' : ''}" href="#/legal/${key}">${n}</a>`).join('')}</div>
+      ${todo ? `<div class="alert alert--warn" style="margin-bottom:16px">${I('alert')}<div><b>${todo} information${todo > 1 ? 's' : ''} à compléter</b> dans ce texte (repère les [à compléter]).</div></div>` : ''}
+      <div class="cols cols--half"><section class="panel"><div class="panel-head"><h2>${LEGAL[k][0]}</h2></div><div class="panel-body"><textarea class="input md-area" data-t style="min-height:560px;border-radius:6px!important">${esc(txt)}</textarea><span class="hint">## intertitre, **gras**, - liste, 1. liste numérotée.</span></div></section>
+      <section class="panel"><div class="panel-head"><h2>Aperçu</h2></div><div class="panel-body preview" data-pv></div></section></div>
+      <div class="savebar"><button class="btn btn--danger" type="button" data-restore>Remettre le modèle</button><button class="btn btn--primary" type="button" data-save>Enregistrer</button></div>`;
+    const pv = () => { $('[data-pv]', c).innerHTML = S.md(txt); };
+    $('[data-t]', c).addEventListener('input', (e) => { txt = e.target.value; dirty = true; pv(); });
+    $('[data-save]', c).addEventListener('click', () => { D.legal[k] = txt; dirty = false; save(LEGAL[k][0] + ' enregistrée'); route(); });
+    $('[data-restore]', c).addEventListener('click', async () => { if (await confirmBox('Remettre le modèle ?', 'Ton texte actuel sera remplacé par le modèle d’origine.', 'Remettre')) { D.legal[k] = window.FUC_DEFAULTS.legal[k]; dirty = false; save('Modèle remis'); route(); } });
+    pv();
+  };
+
+  /* ================= TYPOS & COULEURS ================= */
+  const FONTS_DISPLAY = ['Big Shoulders Stencil Display', 'Anton', 'Bebas Neue', 'Oswald', 'Archivo Black', 'Bungee', 'Rubik Mono One', 'Permanent Marker', 'Rock Salt', 'Black Ops One', 'Teko', 'Staatliches'];
+  const FONTS_TEXT = ['Archivo', 'Inter', 'DM Sans', 'Space Grotesk', 'Work Sans', 'Manrope', 'Rubik', 'IBM Plex Sans', 'Space Mono'];
+  const DESIGN_DEFAULT = { display: 'Big Shoulders Stencil Display', text: 'Archivo', blood: '#b0001a', wall: '#b9b4aa', paper: '#ebe8e1', titleScale: 1, upper: true };
+  views.design = (c) => {
+    const ds = Object.assign({}, DESIGN_DEFAULT, D.design || {});
+    const fam = (f) => 'family=' + f.replace(/ /g, '+') + ':wght@400;700;900';
+    const l = document.createElement('link'); l.rel = 'stylesheet';
+    l.href = 'https://fonts.googleapis.com/css2?' + FONTS_DISPLAY.concat(FONTS_TEXT).map(fam).join('&') + '&display=swap'; document.head.append(l);
+    c.innerHTML = head('Charte graphique', 'Polices et couleurs du site entier. Pour une section précise, va dans Mise en page › Couleurs.', `<a class="btn" href="../index.html" target="_blank" rel="noopener">${I('eye')} Voir le site</a>`)
+      + `<div class="cols"><div class="stack">
+        <section class="panel"><div class="panel-head"><div><h2>Police des titres</h2><p>Les gros titres, les prix, les boutons.</p></div></div><div class="panel-body font-grid" data-fd>${FONTS_DISPLAY.map((f) => `<button type="button" data-font="${esc(f)}" aria-pressed="${ds.display === f}" style="font-family:'${esc(f)}'">FUCSTYLE 69</button>`).join('')}</div></section>
+        <section class="panel"><div class="panel-head"><div><h2>Police des textes</h2><p>Les paragraphes, les menus, les fiches produit.</p></div></div><div class="panel-body font-grid font-grid--text" data-ft>${FONTS_TEXT.map((f) => `<button type="button" data-font="${esc(f)}" aria-pressed="${ds.text === f}" style="font-family:'${esc(f)}'"><b>${esc(f)}</b><span>Freestyle tous les dimanches.</span></button>`).join('')}</div></section>
+        <section class="panel"><div class="panel-head"><h2>Couleurs</h2></div><div class="panel-body grid-3">
+          <div class="field"><label for="cb">Rouge (accent)</label><input id="cb" type="color" data-col="blood" value="${esc(ds.blood)}"></div>
+          <div class="field"><label for="cw">Fond béton</label><input id="cw" type="color" data-col="wall" value="${esc(ds.wall)}"></div>
+          <div class="field"><label for="cp">Fond papier</label><input id="cp" type="color" data-col="paper" value="${esc(ds.paper)}"></div></div></section>
+        <section class="panel"><div class="panel-head"><h2>Titres</h2></div><div class="panel-body stack">
+          <div class="field"><label for="ts">Taille des grands titres <b data-tsv>${Math.round(ds.titleScale * 100)} %</b></label><input id="ts" type="range" min="0.7" max="1.3" step="0.05" value="${ds.titleScale}" data-ts></div>
+          <label class="switch"><input type="checkbox" data-up${ds.upper ? ' checked' : ''}> Titres en majuscules</label></div></section>
+      </div>
+      <div class="stack"><section class="panel" style="position:sticky;top:80px"><div class="panel-head"><h2>Aperçu</h2></div><div class="panel-body design-prev" data-prev></div>
+        <div class="panel-body" style="border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end"><button class="btn" type="button" data-reset>Par défaut</button><button class="btn btn--primary" type="button" data-save>Appliquer au site</button></div></section></div></div>`;
+    const paint = () => {
+      $('[data-prev]', c).innerHTML = `<div style="background:${ds.wall};padding:22px;border-radius:6px;font-family:'${ds.text}'">
+        <div style="font-family:'${ds.display}';font-weight:900;font-size:${2.8 * ds.titleScale}rem;line-height:.9;${ds.upper ? 'text-transform:uppercase' : ''}">Dispo les zins</div>
+        <p style="margin:12px 0">L’album 69💯 Le🩸, le merch et les éditions collector.</p>
+        <span style="display:inline-block;background:${ds.blood};color:#fff;font-family:'${ds.display}';font-weight:900;font-size:1.6rem;padding:4px 12px;transform:rotate(3deg)">25,00€</span>
+        <div style="background:${ds.paper};margin-top:16px;padding:12px;font-size:.9rem">Fond papier — sections claires</div></div>`;
+    };
+    const pick = (host, key) => host.addEventListener('click', (e) => { const b = e.target.closest('[data-font]'); if (!b) return; ds[key] = b.dataset.font; $$('[data-font]', host).forEach((x) => x.setAttribute('aria-pressed', x === b)); paint(); });
+    pick($('[data-fd]', c), 'display'); pick($('[data-ft]', c), 'text');
+    $$('[data-col]', c).forEach((i) => i.addEventListener('input', () => { ds[i.dataset.col] = i.value; paint(); }));
+    $('[data-ts]', c).addEventListener('input', (e) => { ds.titleScale = +e.target.value; $('[data-tsv]', c).textContent = Math.round(ds.titleScale * 100) + ' %'; paint(); });
+    $('[data-up]', c).addEventListener('change', (e) => { ds.upper = e.target.checked; paint(); });
+    $('[data-reset]', c).addEventListener('click', () => { delete D.design; save('Typos et couleurs d’origine remises'); route(); });
+    $('[data-save]', c).addEventListener('click', () => { D.design = ds; save('Typos et couleurs appliquées au site'); });
+    paint();
   };
 
   /* ================= MAGAZINE ================= */
@@ -1079,17 +1450,38 @@
   views.reglages = (c) => {
     const used = (() => { try { return (localStorage.getItem('fucstyle:data') || '').length; } catch (e) { return 0; } })();
     const pct = Math.min(100, used / (5 * 1024 * 1024) * 100);
-    c.innerHTML = head('Réglages', 'Livraison, accès, sauvegardes.')
+    const theme = D.settings.theme || 'auto';
+    c.innerHTML = head('Mon profil', 'Ton compte, ton mot de passe, l’apparence du tableau de bord et tes moyens de paiement.')
       + `<div class="cols"><div class="stack">
-        <section class="panel"><div class="panel-head"><h2>Livraison</h2></div><div class="panel-body stack">
-          <div class="grid-2"><div class="field"><label for="sf">Forfait livraison</label><div class="prefix"><input id="sf" data-k="flat" data-num inputmode="decimal"><span>€</span></div></div>
-          <div class="field"><label for="sfree">Livraison offerte dès</label><div class="prefix"><input id="sfree" data-k="freeFrom" data-num inputmode="decimal"><span>€</span></div></div></div>
-          <div class="field"><label for="sco">Pays livrés (séparés par des virgules)</label><input id="sco" data-countries value="${esc(D.shipping.countries.join(', '))}"></div>
-          <button class="btn btn--primary" type="button" data-saveship style="width:max-content">Enregistrer la livraison</button></div></section>
-        <section class="panel"><div class="panel-head"><h2>Accès au tableau de bord</h2></div><div class="panel-body stack">
+        <section class="panel"><div class="panel-head"><h2>Mes infos</h2></div><div class="panel-body stack">
           <div class="grid-2"><div class="field"><label for="own">Prénom affiché</label><input id="own" data-own value="${esc(D.settings.owner || '')}"></div>
-          <div class="field"><label for="npin">Nouveau code d’accès</label><input id="npin" data-pin type="password" inputmode="numeric" placeholder="4 chiffres minimum"></div></div>
-          <button class="btn btn--primary" type="button" data-saveacc style="width:max-content">Enregistrer l’accès</button></div></section>
+          <div class="field"><label for="pmail">Email de contact du site</label><input id="pmail" type="email" data-pmail value="${esc(D.site.email || '')}"><span class="hint">Affiché sur le site, utilisé pour le formulaire de contact et les mentions légales.</span></div></div>
+          <div class="field"><label for="nmail">Email pour recevoir les alertes de commande</label><input id="nmail" type="email" data-nmail value="${esc(D.settings.alertEmail || D.site.email || '')}"></div>
+          <button class="btn btn--primary" type="button" data-saveinfo style="width:max-content">Enregistrer mes infos</button></div></section>
+        <section class="panel"><div class="panel-head"><h2>Mot de passe</h2></div><div class="panel-body stack">
+          <div class="grid-3"><div class="field"><label for="opw">Mot de passe actuel</label><input id="opw" type="password" data-opw autocomplete="current-password"></div>
+          <div class="field"><label for="npw">Nouveau</label><input id="npw" type="password" data-npw autocomplete="new-password"></div>
+          <div class="field"><label for="cpw">Confirmer</label><input id="cpw" type="password" data-cpw autocomplete="new-password"></div></div>
+          <span class="hint">6 caractères minimum. Lettres, chiffres et symboles acceptés.</span>
+          <button class="btn btn--primary" type="button" data-savepw style="width:max-content">Changer le mot de passe</button></div></section>
+        <section class="panel"><div class="panel-head"><h2>Apparence du tableau de bord</h2></div><div class="panel-body">
+          <div class="seg" role="group" aria-label="Thème"><button type="button" data-theme="light" aria-pressed="${theme === 'light'}">Clair</button><button type="button" data-theme="dark" aria-pressed="${theme === 'dark'}">Sombre</button><button type="button" data-theme="auto" aria-pressed="${theme === 'auto'}">Comme le téléphone</button></div></div></section>
+        <section class="panel"><div class="panel-head"><div><h2>Appli sur ton téléphone</h2><p>Le tableau de bord s’installe comme une appli, avec son icône.</p></div></div><div class="panel-body stack">
+          <ol style="margin:0;padding-left:18px;line-height:1.7"><li><b>iPhone :</b> ouvre cette page dans Safari › bouton Partager › « Sur l’écran d’accueil ».</li><li><b>Android :</b> ouvre-la dans Chrome › menu ⋮ › « Installer l’application ».</li></ol>
+          <button class="btn" type="button" data-notifon style="width:max-content">${I('bell')} Autoriser les notifications</button>
+          <span class="hint" data-notifst></span></div></section>
+        <section class="panel"><div class="panel-head"><div><h2>Paiement PayPal</h2><p>Moyen de paiement actuel : carte bancaire et PayPal, encaissés sur le compte PayPal de Jeff.</p></div>${(D.payment && D.payment.paypalClientId) ? pill('ok', 'Actif') : pill('low', 'Mode test')}</div><div class="panel-body stack">
+          <div class="field"><label for="ppid">Identifiant client PayPal (Client ID)</label><input id="ppid" data-ppid value="${esc((D.payment && D.payment.paypalClientId) || '')}" placeholder="Ex. AYx… (développeur PayPal › Mes applis › Live)"><span class="hint">Vide = mode test : le bouton s’affiche mais n’encaisse rien. Où le trouver : developer.paypal.com › Apps & Credentials › onglet Live › Create App › Client ID.</span></div>
+          <button class="btn btn--primary" type="button" data-saveppid style="width:max-content">Enregistrer PayPal</button></div></section>
+        <section class="panel"><div class="panel-head"><div><h2>Passer à Stripe un jour ?</h2><p>Guide pas à pas, si tu veux changer de moyen de paiement.</p></div></div><div class="panel-body">
+          <details class="guide"><summary>Voir les étapes</summary><ol>
+            <li><b>Crée ton compte</b> sur <a href="https://dashboard.stripe.com/register" target="_blank" rel="noopener">stripe.com</a> avec ton email pro.</li>
+            <li><b>Active les paiements</b> : Stripe te demande ton statut (auto-entrepreneur, asso…), ta pièce d’identité et ton IBAN. Compte 1 à 2 jours de vérification.</li>
+            <li><b>Récupère tes clés</b> : Développeurs › Clés API. Il y en a deux : la clé publique (pk_live_…) et la clé secrète (sk_live_…). Ne donne jamais la clé secrète par message.</li>
+            <li><b>Envoie la clé publique à 404 Agency</b> et donne-nous l’accès à ton compte Vercel : la clé secrète se range là-bas, dans les variables d’environnement, jamais dans le site.</li>
+            <li><b>On branche Stripe</b> (paiement par carte, Apple Pay, Google Pay) et on teste ensemble avec une carte de test.</li>
+            <li><b>Tu choisis</b> : garder PayPal en plus de Stripe, ou le retirer.</li></ol>
+            <p class="hint">Frais indicatifs : environ 1,5 % + 0,25 € par paiement en Europe chez Stripe, vérifie la grille à jour sur leur site.</p></details></div></section>
       </div>
       <div class="stack">
         <section class="panel"><div class="panel-head"><h2>Sauvegarde</h2></div><div class="panel-body stack">
@@ -1102,15 +1494,26 @@
           <button class="btn btn--danger" type="button" data-reset>Tout remettre à zéro</button>
           <span class="hint">Remet le contenu d’origine du site. Les changements faits ici sont perdus.</span></div></section>
       </div></div>`;
-    const ship = clone(D.shipping);
-    bindFields($('.cols', c), ship);
-    $('[data-saveship]', c).addEventListener('click', () => { ship.countries = $('[data-countries]', c).value.split(',').map((x) => x.trim()).filter(Boolean); D.shipping = ship; save('Livraison enregistrée'); });
-    $('[data-saveacc]', c).addEventListener('click', () => {
-      const pin = $('[data-pin]', c).value.trim();
-      if (pin && !/^\d{4,12}$/.test(pin)) return toast('Le code doit contenir de 4 à 12 chiffres.', true);
-      D.settings.owner = $('[data-own]', c).value.trim() || 'Jeff'; if (pin) D.settings.pin = pin;
-      save(pin ? 'Nouveau code enregistré' : 'Accès enregistré'); shell(); route();
+    $('[data-saveinfo]', c).addEventListener('click', () => {
+      const pm = $('[data-pmail]', c).value.trim(), nm = $('[data-nmail]', c).value.trim();
+      if ((pm && !/^\S+@\S+\.\S+$/.test(pm)) || (nm && !/^\S+@\S+\.\S+$/.test(nm))) return toast('Vérifie les adresses email.', true);
+      D.settings.owner = $('[data-own]', c).value.trim() || 'Jeff'; if (pm) D.site.email = pm; D.settings.alertEmail = nm;
+      save('Infos enregistrées'); shell(); route();
     });
+    $('[data-savepw]', c).addEventListener('click', () => {
+      const o = $('[data-opw]', c).value, n = $('[data-npw]', c).value, k = $('[data-cpw]', c).value;
+      if (o !== String(D.settings.pin)) return toast('Le mot de passe actuel est incorrect.', true);
+      if (n.length < 6) return toast('Le nouveau mot de passe doit faire au moins 6 caractères.', true);
+      if (n !== k) return toast('Les deux nouveaux mots de passe ne sont pas identiques.', true);
+      D.settings.pin = n; save('Mot de passe changé'); $$('[data-opw],[data-npw],[data-cpw]', c).forEach((i) => (i.value = ''));
+    });
+    $$('[data-theme]', c).forEach((b) => b.addEventListener('click', () => { D.settings.theme = b.dataset.theme; applyTheme(); save('Apparence enregistrée'); $$('[data-theme]', c).forEach((x) => x.setAttribute('aria-pressed', x === b)); }));
+    const nst = $('[data-notifst]', c);
+    const showN = () => { nst.textContent = !('Notification' in window) ? 'Ce navigateur ne gère pas les notifications. Installe d’abord l’appli.' : Notification.permission === 'granted' ? 'Notifications autorisées sur cet appareil.' : Notification.permission === 'denied' ? 'Notifications bloquées : réactive-les dans les réglages du téléphone.' : ''; };
+    showN();
+    $('[data-notifon]', c).addEventListener('click', async () => { if (!('Notification' in window)) return showN(); const r = await Notification.requestPermission(); showN(); if (r === 'granted' && navigator.serviceWorker) { const reg = await navigator.serviceWorker.ready; reg.showNotification('Fucstyle Admin', { body: 'Les notifications sont activées.', icon: 'icon-192.png' }); } });
+    $('[data-saveppid]', c).addEventListener('click', () => { const v = $('[data-ppid]', c).value.trim(); if (v && !/^[A-Za-z0-9_-]{20,}$/.test(v)) return toast('Cet identifiant ne ressemble pas à un Client ID PayPal.', true); D.payment = Object.assign({}, D.payment, { paypalClientId: v }); save(v ? 'PayPal branché : paiements réels activés' : 'PayPal repassé en mode test'); });
+
     $('[data-export]', c).addEventListener('click', () => download('fucstyle-sauvegarde-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify(D, null, 2), 'application/json'));
     $('[data-import]', c).addEventListener('change', (e) => {
       const f = e.target.files[0]; if (!f) return; const r = new FileReader();
@@ -1120,6 +1523,25 @@
     $('[data-demo]', c).addEventListener('click', async () => { if (await confirmBox('Supprimer les commandes d’exemple ?', 'Seules les vraies commandes seront conservées.', 'Supprimer')) { D.orders = D.orders.filter((o) => !o.demo); save('Commandes d’exemple supprimées'); views.reglages(c); drawNav(); } });
     $('[data-reset]', c).addEventListener('click', async () => { if (await confirmBox('Tout remettre à zéro ?', 'Produits, articles, textes et commandes reviennent à l’état d’origine.', 'Remettre à zéro')) { const pin = D.settings.pin; D = S.reset(); D.settings = { pin, owner: 'Jeff' }; D.messages = []; save('Site remis à zéro'); shell(); route(); } });
   };
+
+  /* ---------- appli : service worker + alerte nouvelle commande ---------- */
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  let lastCount = D.orders.length;
+  setInterval(() => {
+    const fresh = S.load(); if (fresh.orders.length <= lastCount) return;
+    const n = fresh.orders.length - lastCount; lastCount = fresh.orders.length; D.orders = fresh.orders; drawNav && $('[data-nav]') && drawNav();
+    const o = fresh.orders[0]; toast(n > 1 ? n + ' nouvelles commandes' : 'Nouvelle commande ' + o.id + ' — ' + money(o.total));
+    if ('Notification' in window && Notification.permission === 'granted' && navigator.serviceWorker) navigator.serviceWorker.ready.then((r) => r.showNotification('Nouvelle commande ' + o.id, { body: o.customer.first + ' — ' + money(o.total), icon: 'icon-192.png', data: { url: './#/commandes/' + o.id } }));
+  }, 30000);
+
+  /* ---------- thème clair / sombre ---------- */
+  function applyTheme() {
+    const t = (D.settings && D.settings.theme) || 'auto';
+    const dark = t === 'dark' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  }
+  applyTheme();
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 
   /* ---------- démarrage ---------- */
   if (authed()) { shell(); route(); } else loginView();

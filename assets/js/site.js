@@ -63,7 +63,7 @@
         </div>
       </div>
       <div class="footer-bottom"><span>© ${new Date().getFullYear()} Fucstyle — <a href="${esc(site.bercailUrl)}" target="_blank" rel="noopener">Bercail Records</a></span>
-        <span><a href="cgv.html">CGV</a> · <a href="confidentialite.html">Confidentialité</a> · <a href="${esc(site.creditUrl)}" target="_blank" rel="noopener">${esc(site.credit)}</a></span></div>
+        <span><a href="cgv.html">CGV</a> · <a href="retours.html">Retours</a> · <a href="mentions-legales.html">Mentions légales</a> · <a href="confidentialite.html">Confidentialité</a> · <a href="${esc(site.creditUrl)}" target="_blank" rel="noopener">${esc(site.credit)}</a></span></div>
     </div>`;
     document.body.append(footer);
     $('[data-news]', footer).addEventListener('submit', (e) => {
@@ -75,7 +75,8 @@
       out.innerHTML = '<p class="news-ok">Bienvenue dans la team 🩸 Tu seras prévenu en premier.</p>'; e.target.reset();
     });
 
-    const an = site.announcement;
+    const sp = S.sitePromo(D);
+    const an = sp ? { active: true, text: sp.bannerText || (sp.name + ' — dans la limite des stocks'), url: 'boutique.html' } : site.announcement;
     if (an && an.active && an.text) {
       let seen = ''; try { seen = sessionStorage.getItem('fucstyle:announce'); } catch (e) {}
       if (seen !== an.text) {
@@ -125,12 +126,12 @@
       <div><strong>${esc(l.product.name)}</strong>${l.variantLabel ? `<small>${esc(l.variantLabel)}</small>` : ''}
         <div class="mini-qty"><button type="button" data-q="${i}" data-d="-1" aria-label="Retirer un">−</button><span>${l.qty}</span><button type="button" data-q="${i}" data-d="1" aria-label="Ajouter un">+</button></div>
         <button class="rm" type="button" data-rm="${i}">Retirer</button></div>
-      <div class="lt">${S.money(l.lineTotal)}</div></div>`).join('');
+      <div class="lt">${l.was ? `<s class="was">${S.money(l.was * l.qty)}</s>` : ''}${S.money(l.lineTotal)}</div></div>`).join('');
     const sub = lines.reduce((s, l) => s + l.lineTotal, 0);
-    const left = D.shipping.freeFrom - sub;
+    const sh = S.shippingFor(D, 'France', sub), left = sh.left || 0;
     foot.innerHTML = `<div class="row"><span>Sous-total</span><strong>${S.money(sub)}</strong></div>
-      <div class="row muted"><span>${left > 0 ? 'Livraison offerte dès ' + S.money(D.shipping.freeFrom) : 'Livraison offerte'}</span><span>${left > 0 ? 'encore ' + S.money(left) : ''}</span></div>
-      <div class="row total"><span>Total</span><span>${S.money(sub + (left > 0 ? D.shipping.flat : 0))}</span></div>
+      <div class="row muted"><span>${sh.free ? 'Livraison offerte en France' : left > 0 ? 'Livraison offerte dès ' + S.money(sh.zone.freeFrom) : 'Livraison ' + S.money(sh.price)}</span><span>${left > 0 ? 'encore ' + S.money(left) : ''}</span></div>
+      <div class="row total"><span>Total</span><span>${S.money(sub + sh.price)}</span></div>
       <a class="btn btn--blood" href="commande.html">Passer commande</a>`;
     $$('[data-q]', body).forEach((b) => b.addEventListener('click', () => {
       const c = S.cart(); const i = +b.dataset.q; c[i].qty = Math.max(1, c[i].qty + +b.dataset.d);
@@ -144,10 +145,12 @@
   /* ---------- Briques ---------- */
   function productCard(p) {
     const out = S.stockState(p) === 'out';
+    const pr = S.priceOf(D, p), short = (n) => S.money(n).replace(/\s?€/, '€');
     return `<a class="poster product-card${out ? ' is-out' : ''}" href="produit.html?p=${encodeURIComponent(p.slug)}">
-      <span class="price-tag">${S.money(p.price).replace(/\s?€/, '€')}</span>
+      <span class="price-tag${pr.was ? ' is-sale' : ''}">${pr.was ? `<s>${short(pr.was)}</s>` : ''}${short(pr.price)}</span>
+      ${pr.label ? `<span class="sale-burst">${esc(pr.label)}</span>` : ''}
       ${out ? '<span class="stamp">Rupture</span>' : ''}
-      <img src="${esc(p.images[0])}" alt="${esc(p.name)}" loading="lazy">
+      <img src="${esc(p.images[0])}" alt="${esc(p.name)}" loading="lazy"${S.imgStyle(D, p.images[0])}>
       <div class="meta">${p.badge ? `<span class="badge">${esc(p.badge)}</span>` : ''}<h3>${esc(p.name)}</h3><div class="cat">${esc(p.type || p.category)}${p.preorder && !out ? ' — précommande' : ''}</div></div>
     </a>`;
   }
@@ -346,7 +349,7 @@
       setMeta(p.seoTitle || (p.name + ' — Boutique Fucstyle'), p.seoDesc || p.short, p.images[0], {
         '@context': 'https://schema.org', '@type': 'Product', name: p.name, description: p.seoDesc || p.short, sku: p.sku,
         image: p.images.filter((u) => !/^data:/.test(u)), brand: { '@type': 'Brand', name: 'Fucstyle' },
-        offers: { '@type': 'Offer', priceCurrency: 'EUR', price: p.price, availability: 'https://schema.org/' + (S.stockOf(p) > 0 ? 'InStock' : p.preorder ? 'PreOrder' : 'OutOfStock') }
+        offers: { '@type': 'Offer', priceCurrency: 'EUR', price: S.priceOf(D, p).price, availability: 'https://schema.org/' + (S.stockOf(p) > 0 ? 'InStock' : p.preorder ? 'PreOrder' : 'OutOfStock') }
       });
       let img = 0, size = '', color = '';
       const hasV = p.variants.length > 0;
@@ -354,12 +357,12 @@
       const avail = (s, c) => p.variants.some((v) => (!s || v.size === s) && (!c || v.color === c) && (v.stock > 0 || p.preorder));
 
       root.innerHTML = `<div class="pdp">
-        <div class="pdp-gallery"><div class="poster" style="--r:-.8deg"><img data-main src="${esc(p.images[0])}" alt="${esc(p.name)}"></div>
+        <div class="pdp-gallery"><div class="poster" style="--r:-.8deg">${S.priceOf(D, p).label ? `<span class="sale-burst">${esc(S.priceOf(D, p).label)}</span>` : ''}<img data-main src="${esc(p.images[0])}" alt="${esc(p.name)}"${S.imgStyle(D, p.images[0])}></div>
           ${p.images.length > 1 ? `<div class="thumbs">${p.images.map((u, i) => `<button type="button" data-img="${i}" aria-current="${i === 0}" aria-label="Photo ${i + 1}"><img src="${esc(u)}" alt=""></button>`).join('')}</div>` : ''}</div>
         <div class="pdp-info">
           <p class="muted" style="margin:0 0 10px"><a href="boutique.html">Shop</a> / ${esc(p.category)}</p>
           <h1 class="display">${esc(p.name)}</h1>
-          <div class="pdp-price">${S.money(p.price)}${p.compareAt ? `<s>${S.money(p.compareAt)}</s>` : ''}</div>
+          <div class="pdp-price">${S.money(S.priceOf(D, p).price)}${S.priceOf(D, p).was ? `<s>${S.money(S.priceOf(D, p).was)}</s><span class="pdp-save">${esc(S.priceOf(D, p).label)}</span>` : ''}</div>
           <p class="pdp-short">${esc(p.short)}</p>
           <form data-buy>
             ${p.sizes.length ? `<fieldset class="opt"><legend>Taille</legend><div class="opt-row">${p.sizes.map((s) => `<label><input type="radio" name="size" value="${esc(s)}" ${avail(s, '') ? '' : 'disabled'}><span>${esc(s)}</span></label>`).join('')}</div></fieldset>` : ''}
@@ -477,6 +480,11 @@
       contactForm($('[data-contact-form]'), false);
     },
 
+    legal() {
+      const doc = document.body.dataset.doc, txt = (D.legal || {})[doc];
+      if (txt) $('[data-legal]').innerHTML = S.md(txt);
+    },
+
     checkout() {
       const root = $('[data-checkout]');
       let promo = null;
@@ -484,20 +492,22 @@
         const lines = S.cartLines(D);
         if (!lines.length) { root.innerHTML = `<div class="empty"><p class="display">Ton panier est vide</p><a class="btn btn--ink" href="boutique.html">Voir la boutique</a></div>`; return; }
         const sub = lines.reduce((s, l) => s + l.lineTotal, 0);
-        const disc = promo ? (promo.type === 'percent' ? sub * promo.value / 100 : Math.min(promo.value, sub)) : 0;
-        const ship = sub - disc >= D.shipping.freeFrom ? 0 : D.shipping.flat;
+        const disc = promo ? S.codeDiscount(D, promo, lines) : 0;
+        const country = ($('#c-country') || {}).value || 'France';
+        const shInfo = S.shippingFor(D, country, sub - disc), ship = shInfo.price;
         $('[data-summary]').innerHTML = `<h2 class="display" style="font-size:2.4rem;margin-bottom:12px">Ta commande</h2>
           ${lines.map((l) => `<div class="line"><img src="${esc(l.product.images[0])}" alt=""><div><strong>${esc(l.product.name)}</strong><small>${esc(l.variantLabel)}${l.variantLabel ? ' — ' : ''}x${l.qty}</small></div><div class="lt">${S.money(l.lineTotal)}</div></div>`).join('')}
           <div class="promo-row"><input data-code placeholder="Code promo" aria-label="Code promo" value="${promo ? esc(promo.code) : ''}"><button type="button" data-apply>Appliquer</button></div>
           <div class="row"><span>Sous-total</span><span>${S.money(sub)}</span></div>
           ${disc ? `<div class="row"><span>Remise ${esc(promo.code)}</span><span>−${S.money(disc)}</span></div>` : ''}
-          <div class="row"><span>Livraison</span><span>${ship ? S.money(ship) : 'Offerte'}</span></div>
+          <div class="row"><span>Livraison ${esc(shInfo.zone.name)}${shInfo.zone.delay ? `<br><small style="opacity:.7">${esc(shInfo.zone.delay)}</small>` : ''}</span><span>${ship ? S.money(ship) : 'Offerte'}</span></div>
           <div class="row total"><span>Total</span><span>${S.money(sub - disc + ship)}</span></div>`;
         $('[data-apply]').addEventListener('click', () => {
           const code = ($('[data-code]').value || '').trim().toUpperCase();
           const pr = D.promos.find((x) => x.code.toUpperCase() === code && x.active);
-          promo = pr || null; draw();
-          toast(pr ? 'Code ' + pr.code + ' appliqué' : 'Ce code n’existe pas ou n’est plus actif');
+          const ok = pr && S.live({ ...pr, active: true }) && S.codeDiscount(D, pr, S.cartLines(D)) > 0;
+          promo = ok ? pr : null; draw();
+          toast(ok ? 'Code ' + pr.code + ' appliqué' : pr ? 'Ce code ne s’applique à aucun article de ton panier' : 'Ce code n’existe pas ou n’est plus actif');
         });
       };
       root.innerHTML = `<div class="checkout"><form class="form" data-form novalidate>
@@ -509,14 +519,19 @@
           <div class="field"><label for="c-address">Adresse</label><input id="c-address" name="address" autocomplete="street-address" required></div>
           <div class="two"><div class="field"><label for="c-zip">Code postal</label><input id="c-zip" name="zip" autocomplete="postal-code" inputmode="numeric" required></div>
           <div class="field"><label for="c-city">Ville</label><input id="c-city" name="city" autocomplete="address-level2" required></div></div>
-          <div class="field"><label for="c-country">Pays</label><select id="c-country" name="country">${D.shipping.countries.map((c) => `<option>${esc(c)}</option>`).join('')}</select></div>
-          <label style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" name="cgv" required style="width:20px;height:20px;margin-top:2px"> <span>J’accepte les <a href="cgv.html" target="_blank">conditions générales de vente</a>.</span></label>
+          <div class="field"><label for="c-country">Pays</label><select id="c-country" name="country">${S.countries(D).map((c) => `<option>${esc(c)}</option>`).join('')}</select></div>
+          <label style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" name="cgv" required style="width:20px;height:20px;margin-top:2px"> <span>J’ai lu et j’accepte les <a href="cgv.html" target="_blank">conditions générales de vente</a> et la <a href="retours.html" target="_blank">politique de retour</a>.</span></label>
           <div data-err></div>
-          <button class="btn btn--blood" type="submit">Payer la commande</button>
-          <p class="pay-note">Paiement sécurisé par carte bancaire ou PayPal.</p>
+          <button class="btn btn--blood" type="submit" data-topay>Continuer vers le paiement</button>
+          <div class="pay-box" data-paybox hidden><h3 class="display" style="font-size:2rem;margin:0 0 6px">Paiement</h3>
+            <p class="pay-note" style="margin:0 0 14px">Carte bancaire ou compte PayPal, paiement sécurisé par PayPal.</p>
+            ${!(D.payment && D.payment.paypalClientId) ? '<p class="pay-test">Mode test : aucun vrai paiement n’est encaissé tant que l’identifiant PayPal n’est pas renseigné dans le tableau de bord.</p>' : ''}
+            <div data-paypal></div><button class="link-arrow" type="button" data-back style="background:none;border:0;cursor:pointer;margin-top:10px">Modifier mes infos</button></div>
+          <p class="pay-note" data-paynote>Paiement sécurisé par carte bancaire ou PayPal.</p>
         </form><aside class="summary" data-summary></aside></div>`;
       draw();
       if (!$('[data-form]')) return;
+      $('#c-country').addEventListener('change', draw);
       $('[data-form]').addEventListener('submit', (e) => {
         e.preventDefault();
         const fd = Object.fromEntries(new FormData(e.target));
@@ -527,13 +542,34 @@
         }
         const lines = S.cartLines(D); if (!lines.length) return;
         delete fd.cgv;
-        const order = S.placeOrder(D, fd, lines, promo);
+        $('[data-err]').innerHTML = '';
+        const form = e.target;
+        $$('input,select', form).forEach((i) => (i.disabled = true));
+        $('[data-topay]').hidden = true; $('[data-paynote]').hidden = true; $('[data-paybox]').hidden = false;
+        $('[data-back]').onclick = () => { $$('input,select', form).forEach((i) => (i.disabled = false)); $('[data-topay]').hidden = false; $('[data-paynote]').hidden = false; $('[data-paybox]').hidden = true; $('[data-paypal]').innerHTML = ''; };
+        const total = () => { const l = S.cartLines(D); const sub = l.reduce((a, x) => a + x.lineTotal, 0); const disc = promo ? S.codeDiscount(D, promo, l) : 0; return +(sub - disc + S.shippingFor(D, fd.country, sub - disc).price).toFixed(2); };
+        const finish = (payment, ref) => {
+          const order = S.placeOrder(D, fd, S.cartLines(D), promo);
+          order.payment = payment; order.paypalId = ref || ''; S.save(D);
+          thanks(order);
+        };
+        loadPayPal().then((paypal) => {
+          paypal.Buttons({
+            style: { layout: 'vertical', color: 'black', shape: 'rect', label: 'pay' },
+            createOrder: (data, actions) => actions.order.create({ purchase_units: [{ description: 'Commande fucstyle.fr', amount: { currency_code: 'EUR', value: total().toFixed(2) } }], application_context: { shipping_preference: 'NO_SHIPPING' } }),
+            onApprove: (data, actions) => actions.order.capture().then((det) => finish(data.paymentSource === 'card' ? 'Carte bancaire (PayPal)' : 'PayPal', det && det.id)),
+            onError: () => { $('[data-err]').innerHTML = '<p class="form-msg">Le paiement n’a pas abouti. Réessaie ou choisis un autre moyen.</p>'; }
+          }).render($('[data-paypal]'));
+        }).catch(() => { $('[data-paypal]').innerHTML = '<p class="form-msg">Le module de paiement PayPal ne se charge pas. Vérifie ta connexion et recharge la page.</p>'; });
+      });
+      function thanks(order) {
+        const fd = order.customer;
         root.innerHTML = `<div class="empty" style="max-width:640px;margin:0 auto"><p class="display" style="font-size:4rem">Merci pour la force 🩸</p>
           <p class="lead" style="margin:0 auto 12px">Commande <strong>${esc(order.id)}</strong> enregistrée — total ${S.money(order.total)}.</p>
           <p class="muted">Un email de confirmation part à ${esc(fd.email)}. ${esc(site.shippingNote)}</p>
           <a class="btn btn--ink" href="index.html">Retour à l’accueil</a></div>`;
         renderCart();
-      });
+      }
     }
   };
 
@@ -566,11 +602,128 @@
     });
   }
 
+  /* ---------- PayPal (carte bancaire + PayPal) ---------- */
+  let ppPromise = null;
+  function loadPayPal() {
+    if (window.paypal) return Promise.resolve(window.paypal);
+    if (ppPromise) return ppPromise;
+    const id = (D.payment && D.payment.paypalClientId) || 'test';
+    ppPromise = new Promise((res, rej) => {
+      const sc = document.createElement('script');
+      sc.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(id)}&currency=EUR&locale=fr_FR&intent=capture&enable-funding=card&disable-funding=paylater,venmo`;
+      sc.onload = () => (window.paypal ? res(window.paypal) : rej()); sc.onerror = rej; document.head.append(sc);
+    });
+    return ppPromise;
+  }
+
+  /* ---------- Typos & couleurs choisies dans le tableau de bord ---------- */
+  function applyDesign() {
+    const ds = D.design; if (!ds) return;
+    const r = document.documentElement.style;
+    const fams = [ds.display, ds.text].filter(Boolean);
+    if (fams.length) {
+      const l = document.createElement('link'); l.rel = 'stylesheet';
+      l.href = 'https://fonts.googleapis.com/css2?' + fams.map((f) => 'family=' + f.replace(/ /g, '+') + ':wght@400;600;700;800;900').join('&') + '&display=swap';
+      document.head.append(l);
+    }
+    if (ds.display) r.setProperty('--f-display', `'${ds.display}', 'Arial Narrow', Impact, sans-serif`);
+    if (ds.text) r.setProperty('--f-text', `'${ds.text}', 'Helvetica Neue', Arial, sans-serif`);
+    if (ds.blood) r.setProperty('--blood', ds.blood);
+    if (ds.wall) r.setProperty('--wall', ds.wall);
+    if (ds.paper) r.setProperty('--paper', ds.paper);
+    if (ds.titleScale && ds.titleScale !== 1) r.setProperty('--title-scale', ds.titleScale);
+    if (ds.upper === false) document.documentElement.classList.add('no-upper');
+  }
+  applyDesign();
+
+  /* ---------- Blocs ajoutés depuis le tableau de bord ---------- */
+  const ytIdOf = (u) => { const m = String(u || '').match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/); return m ? m[1] : (/^[\w-]{11}$/.test(u || '') ? u : ''); };
+  const pic = (u, alt, extra) => u ? `<img src="${esc(u)}" alt="${esc(alt || '')}" loading="lazy"${S.imgStyle(D, u)}${extra || ''}>` : '';
+  function renderBlock(b) {
+    const bg = { ink: ' section--ink', paper: ' section--paper', blood: ' section--blood', wall: '' }[b.bg || 'wall'] || '';
+    const btn = b.button && b.link ? `<p style="margin-top:24px"><a class="btn ${b.bg === 'ink' || b.bg === 'blood' ? 'btn--ghost' : 'btn--ink'}" href="${esc(b.link)}">${esc(b.button)}</a></p>` : '';
+    const title = b.title ? `<h2 class="display h-section">${esc(b.title)}</h2>` : '';
+    const text = b.text ? `<div class="prose lead">${S.md(b.text)}</div>` : '';
+    const al = b.align === 'center' ? ' blk--center' : '';
+    let inner = '';
+    switch (b.type) {
+      case 'image-texte':
+        inner = `<div class="wrap blk-split${b.side === 'right' ? ' blk-split--rev' : ''}"><div class="poster" style="--r:${b.side === 'right' ? '1.2' : '-1.2'}deg">${pic(b.image, b.title)}</div><div>${title}${text}${btn}</div></div>`; break;
+      case 'banniere':
+        return `<section class="blk-banner" data-blk="${b.id}">${pic(b.image, b.title)}<div class="wrap${al}">${title}${text}${btn}</div></section>`;
+      case 'galerie':
+        inner = `<div class="wrap${al}">${title}${text}<div class="freestyles wall" style="margin-top:32px">${(b.images || []).map((u) => `<div class="poster">${pic(u)}</div>`).join('')}</div>${btn}</div>`; break;
+      case 'video': {
+        const id = ytIdOf(b.video);
+        inner = `<div class="wrap${al}">${title}${text}${id ? `<div class="video-frame" style="margin-top:28px"><button class="yt-cover" type="button" data-yt="${esc(id)}" style="background-image:url('https://i.ytimg.com/vi/${esc(id)}/maxresdefault.jpg')" aria-label="Lire la vidéo"><span class="play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4l14 8-14 8z"/></svg></span></button></div>` : ''}${btn}</div>`; break;
+      }
+      case 'citation':
+        inner = `<div class="wrap blk--center"><blockquote class="blk-quote display">« ${esc(b.text || '')} »</blockquote>${b.title ? `<p class="blk-quote-by">${esc(b.title)}</p>` : ''}${btn}</div>`; break;
+      case 'produits': {
+        let list = S.visibleProducts(D);
+        if (b.category) list = list.filter((p) => p.category === b.category);
+        list = list.slice(0, +b.max || 4);
+        inner = `<div class="wrap">${title ? `<div class="sec-head">${title}<a class="link-arrow" href="boutique.html">Toute la boutique</a></div>` : ''}${text}<div class="products wall">${list.map(productCard).join('')}</div></div>`; break;
+      }
+      default:
+        inner = `<div class="wrap${al}">${title}${text}${btn}</div>`;
+    }
+    return `<section class="section blk${bg}" data-blk="${b.id}">${inner}</section>`;
+  }
+  function applyLayout() {
+    const main = $('main'); if (!main) return;
+    const blocks = (D.blocks || []).filter((b) => (b.page || 'home') === page && !b.hidden);
+    const byId = {}; blocks.forEach((b) => (byId[b.id] = b));
+    const order = (D.layout && D.layout[page]) || null;
+    const tmp = document.createElement('div');
+    const nodeFor = (id) => {
+      if (byId[id]) { tmp.innerHTML = renderBlock(byId[id]); return tmp.firstElementChild; }
+      return main.querySelector(`:scope > [data-sec="${id}"]`);
+    };
+    if (order && order.length) {
+      const seen = new Set();
+      order.forEach((it) => {
+        seen.add(it.id);
+        const n = nodeFor(it.id); if (!n) return;
+        if (it.hidden) { n.remove(); return; }
+        main.append(n);
+      });
+      blocks.filter((b) => !seen.has(b.id)).forEach((b) => main.append(nodeFor(b.id)));
+    } else blocks.forEach((b) => main.append(nodeFor(b.id)));
+    bindYT(main);
+    const styles = ((D.sectionStyle || {})[page]) || {};
+    Object.entries(styles).forEach(([id, st]) => {
+      const n = main.querySelector(`:scope > [data-sec="${id}"], :scope > [data-blk="${id}"]`); if (!n) return;
+      const img = st.image ? st.image : '';
+      if (img) n.style.background = `linear-gradient(rgba(0,0,0,${(st.overlay || 0) / 100}),rgba(0,0,0,${(st.overlay || 0) / 100})), url('${img}') center/cover`;
+      else if (st.bg) { n.style.background = st.bg; n.style.backgroundImage = 'none'; }
+      if (st.color) { n.style.color = st.color; n.style.setProperty('--muted', st.color); n.style.setProperty('--ink-text', st.color); }
+      else if (img) n.style.color = '#fff';
+      if (st.title) n.style.setProperty('--title-color', st.title);
+      if (st.pad) n.classList.add('pad-' + st.pad);
+    });
+  }
+  /* cadrage réglé dans l'admin, appliqué à toutes les photos du site */
+  function frame(root) {
+    const meta = D.imgMeta || {};
+    $$('img', root.nodeType === 1 ? root : document).forEach((im) => {
+      const m = meta[im.getAttribute('src')]; if (!m || im.dataset.framed) return;
+      im.dataset.framed = '1';
+      im.style.objectPosition = `${+m.x || 50}% ${+m.y || 50}%`;
+      if (m.fit === 'contain') im.style.objectFit = 'contain';
+      if (m.z > 1) {
+        im.style.transform = `scale(${m.z})`; im.style.transformOrigin = `${m.x}% ${m.y}%`;
+        if (!im.parentNode.classList.contains('zbox')) { const box = document.createElement('span'); box.className = 'zbox'; im.replaceWith(box); box.append(im); }
+      }
+    });
+  }
+
   document.title = document.title || site.seoTitle;
   renderChrome();
   if (pages[page]) pages[page]();
+  applyLayout(); frame(document.body);
   // un sticker 69💯 le🩸 sur les en-têtes de pages
   $$('.page-head .wrap').forEach((w) => { const im = document.createElement('img'); im.className = 'sticker sticker--head'; im.setAttribute('data-mark', ''); im.alt = ''; im.setAttribute('aria-hidden', 'true'); w.append(im); });
   S.typo(document.body); marks(); dropify(document.body);
-  new MutationObserver((ms) => { ms.forEach((m) => m.addedNodes.forEach((n) => { if (n.nodeType === 1) { S.typo(n); dropify(n); if (n.matches && (n.matches('img[data-mark]') || n.querySelector('img[data-mark]'))) marks(); } else if (n.nodeType === 3 && n.nodeValue.includes('🩸') && n.parentNode) dropify(n.parentNode); })); }).observe(document.body, { childList: true, subtree: true });
+  new MutationObserver((ms) => { ms.forEach((m) => m.addedNodes.forEach((n) => { if (n.nodeType === 1) { S.typo(n); dropify(n); frame(n); if (n.matches && (n.matches('img[data-mark]') || n.querySelector('img[data-mark]'))) marks(); } else if (n.nodeType === 3 && n.nodeValue.includes('🩸') && n.parentNode) dropify(n.parentNode); })); }).observe(document.body, { childList: true, subtree: true });
 })();
