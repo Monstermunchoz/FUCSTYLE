@@ -66,7 +66,7 @@
       },
       seoTitle: 'Fucstyle – Rappeur Lyonnais | Entre authenticité & indépendance',
       seoDescription: 'Fucstyle, l’homme aux plus de 120 freestyles, dévoile son premier album solo “69💯 Le🩸”. Plonge dans l’univers authentique du rappeur lyonnais.',
-      credit: 'Designed by 404 Agency',
+      credit: 'Site créé par 404 Agency — Mamen',
       creditUrl: 'https://www.instagram.com/404digital_agency'
     },
 

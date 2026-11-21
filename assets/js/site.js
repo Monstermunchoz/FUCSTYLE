@@ -62,7 +62,8 @@
         </div>
       </div>
       <div class="footer-bottom"><span>© ${new Date().getFullYear()} Fucstyle — <a href="${esc(site.bercailUrl)}" target="_blank" rel="noopener">Bercail Records</a></span>
-        <span><a href="cgv.html">CGV</a> · <a href="retours.html">Retours</a> · <a href="mentions-legales.html">Mentions légales</a> · <a href="confidentialite.html">Confidentialité</a> · <a href="${esc(site.creditUrl)}" target="_blank" rel="noopener">${esc(site.credit)}</a></span></div>
+        <span><a href="cgv.html">CGV</a> · <a href="retours.html">Retours</a> · <a href="mentions-legales.html">Mentions légales</a> · <a href="confidentialite.html">Confidentialité</a></span></div>
+      <p class="footer-credit"><a href="${esc(window.FUC_DEFAULTS.site.creditUrl)}" target="_blank" rel="noopener">${esc(window.FUC_DEFAULTS.site.credit)}</a></p>
     </div>`;
     document.body.append(footer);
     $('[data-news]', footer).addEventListener('submit', (e) => {
