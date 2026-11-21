@@ -766,13 +766,27 @@
     let q = '', fl = '';
     const rows = () => D.products.flatMap((p) => (p.variants.length ? p.variants.map((v, vi) => ({ p, v, vi, label: [v.size, v.color].filter(Boolean).join(' / '), stock: +v.stock })) : [{ p, v: null, label: '—', stock: +p.stock }]));
     const state = (r) => (r.stock <= 0 ? 'out' : r.stock <= r.p.lowStock ? 'low' : 'ok');
+    /* trois tiroirs : Skeuds (CD, vinyles…), Packs, Merch — fermés par défaut */
+    const GROUPS = [['skeud', 'Skeuds', 'CD, vinyles'], ['pack', 'Packs', 'Packs et collectors'], ['merch', 'Merch', 'T-shirts, casquettes…']];
+    const groupOf = (p) => { const ty = ((p.type || '') + ' ' + (p.category || '')).toLowerCase(), t = (ty + ' ' + p.name).toLowerCase(); if (/pack|bundle|coffret|collector/.test(ty) && !/vinyl/.test(ty)) return 'pack'; if (/\bcd\b|vinyl|vinyle|disque|album|digipack|k7|cassette|musique/.test(t)) return 'skeud'; if (/\bpack\b|bundle|coffret/.test(t)) return 'pack'; return 'merch'; };
+    const open = (views.stock.open = views.stock.open || {});
     const draw = () => {
       const list = rows().filter((r) => (!q || r.p.name.toLowerCase().includes(q)) && (!fl || state(r) === fl));
-      $('[data-list]', c).innerHTML = list.length ? `<table class="t matrix"><thead><tr><th>Produit</th><th>Variante</th><th>État</th><th class="num">Quantité</th></tr></thead><tbody>
-        ${list.map((r, i) => `<tr><td><div class="prod"><img src="${esc(r.p.images[0] || '')}" alt=""><div><b>${esc(r.p.name)}</b><small>${esc(r.p.sku || '')}</small></div></div></td><td>${esc(r.label)}</td>
-          <td>${pill(state(r), state(r) === 'out' ? 'Rupture' : state(r) === 'low' ? 'Stock bas' : 'OK')}</td>
-          <td class="num"><div class="stepper"><button type="button" data-step="${i}" data-d="-1" aria-label="Retirer 1">−</button><input type="number" min="0" value="${r.stock}" data-set="${i}" aria-label="Quantité"><button type="button" data-step="${i}" data-d="1" aria-label="Ajouter 1">+</button></div></td></tr>`).join('')}</tbody></table>`
-        : '<div class="empty-state"><b>Rien à afficher</b>Aucune ligne ne correspond à ce filtre.</div>';
+      const all = rows();
+      if (!list.length) { $('[data-list]', c).innerHTML = '<div class="empty-state"><b>Rien à afficher</b>Aucune ligne ne correspond à ce filtre.</div>'; return; }
+      $('[data-list]', c).innerHTML = GROUPS.map(([g, label, sub]) => {
+        const gl = list.filter((r) => groupOf(r.p) === g); const ga = all.filter((r) => groupOf(r.p) === g);
+        if (!ga.length) return '';
+        const units = ga.reduce((s, r) => s + Math.max(0, r.stock), 0), outN = ga.filter((r) => state(r) === 'out').length, lowN = ga.filter((r) => state(r) === 'low').length;
+        const isOpen = open[g] || ((q || fl) && gl.length);
+        return `<details class="stock-grp" data-grp="${g}"${isOpen ? ' open' : ''}><summary><span class="sg-name">${label}</span><small>${sub} · ${((n) => n + ' produit' + (n > 1 ? 's' : ''))(new Set(ga.map((r) => r.p.id)).size)} · ${units} en stock</small>
+          <span class="sg-alerts">${outN ? pill('out', outN + ' en rupture') : ''}${lowN ? pill('low', lowN + ' stock bas') : ''}${!outN && !lowN ? pill('ok', 'Tout est OK') : ''}</span><span class="sg-chev" aria-hidden="true">▾</span></summary>
+          ${gl.length ? `<table class="t matrix"><thead><tr><th>Produit</th><th>Variante</th><th>État</th><th class="num">Quantité</th></tr></thead><tbody>
+          ${gl.map((r) => { const i = list.indexOf(r); return `<tr><td><div class="prod"><img src="${esc(r.p.images[0] || '')}" alt=""><div><b>${esc(r.p.name)}</b><small>${esc(r.p.sku || '')}</small></div></div></td><td>${esc(r.label)}</td>
+            <td>${pill(state(r), state(r) === 'out' ? 'Rupture' : state(r) === 'low' ? 'Stock bas' : 'OK')}</td>
+            <td class="num"><div class="stepper"><button type="button" data-step="${i}" data-d="-1" aria-label="Retirer 1">−</button><input type="number" min="0" value="${r.stock}" data-set="${i}" aria-label="Quantité"><button type="button" data-step="${i}" data-d="1" aria-label="Ajouter 1">+</button></div></td></tr>`; }).join('')}</tbody></table>` : '<p class="hint" style="padding:12px 16px">Aucune ligne ne correspond à ce filtre ici.</p>'}</details>`;
+      }).join('');
+      $$('details[data-grp]', c).forEach((d) => d.addEventListener('toggle', () => { open[d.dataset.grp] = d.open; }));
       const apply = (r, n) => { n = Math.max(0, n | 0); if (r.v) r.v.stock = n; else r.p.stock = n; save(); };
       $$('[data-step]', c).forEach((b) => b.addEventListener('click', () => { const r = list[+b.dataset.step]; apply(r, r.stock + +b.dataset.d); draw(); }));
       $$('[data-set]', c).forEach((inp) => inp.addEventListener('change', () => { apply(list[+inp.dataset.set], +inp.value); toast('Stock mis à jour'); draw(); }));
