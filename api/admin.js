@@ -8,6 +8,9 @@ import { redis, send, readBody, noDb, isAdmin, hash, sessionFor, passwordHash, g
 
 export default async function handler(req, res) {
   if (!redis) return noDb(res);
+  try { return await main(req, res); } catch (e) { return send(res, 500, { error: 'server', message: String(e && e.message || e).slice(0, 200) }); }
+}
+async function main(req, res) {
   if (req.method === 'GET' && req.query && req.query.vapid) return send(res, 200, { publicKey: (await vapid()).publicKey });
   if (req.method === 'GET') {
     if (!(await isAdmin(req))) return send(res, 401, { error: 'auth' });

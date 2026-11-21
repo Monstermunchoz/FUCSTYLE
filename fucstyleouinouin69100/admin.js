@@ -203,6 +203,7 @@
         const r = await S.api('admin', { method: 'POST', body: { action: 'login', password: pw } });
         if (r.ok && r.data && r.data.token) { sessionStorage.setItem('fucstyle:token', r.data.token); return (await loadRemote()) ? 'remote' : 'fail'; }
         if (r.status === 401) return 'bad';
+        if (r.status >= 500 && r.status !== 503) { tryLogin.err = (r.data && (r.data.message || r.data.error)) || ('erreur ' + r.status); return 'fail'; }
       } catch (e) { /* pas d'API : mode local */ }
     }
     return pw === String(D.settings.pin) ? 'local' : 'bad';
@@ -220,7 +221,7 @@
       tryLogin($('#pin').value).then((res) => {
         btn.disabled = false; btn.textContent = 'Entrer';
         if (res === 'remote' || res === 'local') { try { sessionStorage.setItem('fucstyle:admin', '1'); } catch (er) {} shell(); route(); }
-        else if (res === 'fail') $('.login-err').textContent = 'Connexion à la base impossible. Réessaie dans un instant.';
+        else if (res === 'fail') $('.login-err').textContent = 'Connexion à la base impossible' + (tryLogin.err ? ' (' + tryLogin.err + ')' : '') + '. Réessaie dans un instant.';
         else { $('.login-err').textContent = 'Mot de passe incorrect. Réessaie.'; $('#pin').select(); }
       });
     });
