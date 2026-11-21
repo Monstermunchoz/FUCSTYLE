@@ -193,7 +193,7 @@
     $$('[data-notifbtn]', c).forEach((b) => b.addEventListener('click', () => enableNotifs($('[data-notifst]', c))));
   }
 
-  const BANNER_PRESETS = [['Rouge', '#b0001a', '#ffffff', '#ff2a44'], ['Noir', '#0a0a0a', '#ffffff', '#e0001f'], ['Jaune', '#ffd400', '#0a0a0a', '#c4001d'], ['Blanc', '#ffffff', '#0a0a0a', '#c4001d'], ['Béton', '#8d877c', '#ffffff', '#c4001d']];
+  const BANNER_PRESETS = [['Rouge', '#b0001a', '#ffffff', '#ff2a44'], ['Noir', '#0a0a0a', '#ffffff', '#e0001f'], ['Jaune', '#ffd400', '#0a0a0a', '#c4001d'], ['Blanc', '#ffffff', '#0a0a0a', '#c4001d'], ['Béton', '#8d877c', '#ffffff', '#c4001d'], ['Beige', '#ebe8e1', '#0a0a0a', '#c4001d']];
   const DROP_SVG = '<svg class="bn-drop" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 3C32 3 11 28.5 11 41.5C11 53.1 20.4 62 32 62C43.6 62 53 53.1 53 41.5C53 28.5 32 3 32 3Z"/></svg>';
   function getPath(o, p) { return p.split('.').reduce((a, k) => (a == null ? a : a[k]), o); }
   function setPath(o, p, v) { const ks = p.split('.'); const last = ks.pop(); const t = ks.reduce((a, k) => (a[k] = a[k] || {}), o); t[last] = v; }
@@ -593,6 +593,7 @@
             <div class="field"><label for="pst">Statut</label><select id="pst" data-k="status"><option value="publie">En ligne</option><option value="brouillon">Brouillon</option><option value="cache">Masqué</option></select></div>
             <label class="switch"><input type="checkbox" data-k="preorder"> Précommande (vendable même sans stock)</label>
             <label class="switch"><input type="checkbox" data-k="featured"> Afficher sur l’accueil</label>
+            <div class="field"><label for="pcl">Petite ligne sous le nom (vignette)</label><input id="pcl" data-k="cardLine" placeholder="ex. Logo 69💯 Le🩸 brodé — coton bio"><span class="hint">S’affiche sous le nom dans la boutique. Vide = rien (le type n’est plus répété s’il est identique au nom).</span></div>
             <div class="grid-2"><div class="field"><label for="pb">Étiquette</label><input id="pb" data-k="badge" placeholder="Nouveau, 50 ex.…"></div><div class="field"><label for="pw">Poids (kg)</label><input id="pw" data-k="weight" data-num inputmode="decimal"></div></div>
           </section>
 
@@ -1345,7 +1346,7 @@
   /* ================= TYPOS & COULEURS ================= */
   const FONTS_DISPLAY = ['Big Shoulders Stencil Display', 'Anton', 'Bebas Neue', 'Oswald', 'Archivo Black', 'Bungee', 'Rubik Mono One', 'Permanent Marker', 'Rock Salt', 'Black Ops One', 'Teko', 'Staatliches'];
   const FONTS_TEXT = ['Archivo', 'Inter', 'DM Sans', 'Space Grotesk', 'Work Sans', 'Manrope', 'Rubik', 'IBM Plex Sans', 'Space Mono'];
-  const DESIGN_DEFAULT = { display: 'Big Shoulders Stencil Display', text: 'Archivo', blood: '#b0001a', wall: '#b9b4aa', paper: '#ebe8e1', titleScale: 1, upper: true, cards: 'noir' };
+  const DESIGN_DEFAULT = { display: 'Big Shoulders Stencil Display', text: 'Archivo', blood: '#b0001a', wall: '#b9b4aa', paper: '#ebe8e1', titleScale: 1, upper: true, cards: 'beige' };
   views.design = (c) => {
     const ds = Object.assign({}, DESIGN_DEFAULT, D.design || {});
     const fam = (f) => 'family=' + f.replace(/ /g, '+') + ':wght@400;700;900';
@@ -1373,7 +1374,7 @@
           <div class="field"><label for="cw">Fond béton</label><input id="cw" type="color" data-col="wall" value="${esc(ds.wall)}"></div>
           <div class="field"><label for="cp">Fond papier</label><input id="cp" type="color" data-col="paper" value="${esc(ds.paper)}"></div></div></section>
         <section class="panel"><div class="panel-head"><div><h2>Cadre des produits</h2><p>La couleur du cadre photo autour de chaque produit. Le noir fait ressortir les T-shirts et vinyles blancs.</p></div></div><div class="panel-body card-frames">
-          ${[['noir', 'Noir', '#141414', '#fff'], ['blanc', 'Blanc', '#fff', '#111'], ['kraft', 'Kraft', '#b99a6b', '#1a1208'], ['rouge', 'Rouge', ds.blood, '#fff']].map(([k, l, bg, fg]) => `<button type="button" data-cards="${k}" aria-pressed="${(ds.cards || 'noir') === k}"><span style="background:${bg};color:${fg}"><i></i><b>T-shirt</b></span>${l}</button>`).join('')}</div></section>
+          ${[['beige', 'Beige', ds.paper, '#111'], ['noir', 'Noir', '#141414', '#fff'], ['blanc', 'Blanc', '#fff', '#111'], ['kraft', 'Kraft', '#b99a6b', '#1a1208'], ['rouge', 'Rouge', ds.blood, '#fff']].map(([k, l, bg, fg]) => `<button type="button" data-cards="${k}" aria-pressed="${(ds.cards || 'beige') === k}"><span style="background:${bg};color:${fg}"><i></i><b>T-shirt</b></span>${l}</button>`).join('')}</div></section>
         <section class="panel"><div class="panel-head"><h2>Titres</h2></div><div class="panel-body stack">
           <div class="field"><label for="ts">Taille des grands titres <b data-tsv>${Math.round(ds.titleScale * 100)} %</b></label><input id="ts" type="range" min="0.7" max="1.3" step="0.05" value="${ds.titleScale}" data-ts></div>
           <label class="switch"><input type="checkbox" data-up${ds.upper ? ' checked' : ''}> Titres en majuscules</label></div></section>

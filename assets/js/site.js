@@ -143,6 +143,15 @@
   }
 
   /* ---------- Briques ---------- */
+  /* ligne sous le nom : celle choisie par Jeff, sinon le type s’il apporte quelque chose */
+  function cardSub(p, out) {
+    const norm = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '');
+    let t = p.cardLine != null && String(p.cardLine).trim() ? String(p.cardLine).trim() : (p.type || p.category || '');
+    if (!p.cardLine && (!t || norm(p.name).includes(norm(t)) || norm(t).includes(norm(p.name)))) t = '';
+    const pre = p.preorder && !out ? 'Précommande' : '';
+    const line = [t, pre].filter(Boolean).join(' — ');
+    return line ? `<div class="cat">${esc(line)}</div>` : '';
+  }
   function productCard(p) {
     const out = S.stockState(p) === 'out';
     const pr = S.priceOf(D, p), short = (n) => S.money(n).replace(/\s?€/, '€');
@@ -151,7 +160,7 @@
       ${pr.label ? `<span class="sale-burst">${esc(pr.label)}</span>` : ''}
       ${out ? '<span class="stamp">Rupture</span>' : ''}
       <img src="${esc(p.images[0])}" alt="${esc(p.name)}" loading="lazy"${S.imgStyle(D, p.images[0])}>
-      <div class="meta">${p.badge ? `<span class="badge">${esc(p.badge)}</span>` : ''}<h3>${esc(p.name)}</h3><div class="cat">${esc(p.type || p.category)}${p.preorder && !out ? ' — précommande' : ''}</div></div>
+      <div class="meta">${p.badge ? `<span class="badge">${esc(p.badge)}</span>` : ''}<h3>${esc(p.name)}</h3>${cardSub(p, out)}</div>
     </a>`;
   }
   function storyCard(a, cls) {

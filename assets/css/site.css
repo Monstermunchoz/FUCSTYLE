@@ -814,11 +814,13 @@ html.is-loading main { opacity: 0; } main { transition: opacity .2s; }
 .announce svg.drop { fill: var(--drop, #ff2a44); width: .7em; height: .9em; stroke: #fff; stroke-width: 5px; paint-order: stroke; vertical-align: -.1em; }
 
 /* cadre des produits : noir par défaut, pour que les produits blancs ressortent */
-.product-card { --frame: #141414; --frame-ink: #fff; --frame-muted: #a9a49a; background: var(--frame); color: var(--frame-ink); }
+.product-card { --frame: var(--paper); --frame-ink: var(--ink); --frame-muted: #6b665c; background: var(--frame); color: var(--frame-ink); }
 .product-card .cat { color: var(--frame-muted); }
 .product-card .meta .badge { background: var(--frame-ink); color: var(--frame); }
 .product-card img { background: #fff; }
+[data-cards="noir"] .product-card { --frame: #141414; --frame-ink: #fff; --frame-muted: #a9a49a; }
 [data-cards="blanc"] .product-card { --frame: #fff; --frame-ink: var(--ink); --frame-muted: var(--muted); }
 [data-cards="kraft"] .product-card { --frame: #b99a6b; --frame-ink: #1a1208; --frame-muted: #4a3a22; }
 [data-cards="rouge"] .product-card { --frame: var(--blood); --frame-ink: #fff; --frame-muted: #ffd3d8; }
 [data-cards="rouge"] .product-card .price-tag { background: #0a0a0a; }
+[data-cards="beige"] .product-card { --frame: var(--paper); --frame-ink: var(--ink); --frame-muted: #6b665c; }

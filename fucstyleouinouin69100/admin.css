@@ -541,7 +541,7 @@ img:not([src]), img[src=""] { visibility: hidden; }
 .intro-pick button[aria-pressed="true"] { border-color: var(--blood); box-shadow: 0 0 0 3px rgba(176,0,26,.15); }
 .intro-pick i { position: absolute; top: 12px; left: 12px; background: var(--blood); color: #fff; font: 700 11px/1 system-ui; padding: 4px 7px; border-radius: 4px; font-style: normal; }
 .intro-panel .grid-3 { align-items: start; }
-.card-frames { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.card-frames { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
 .card-frames button { display: grid; gap: 8px; justify-items: center; border: 2px solid var(--line); border-radius: 10px; padding: 10px; background: #b9b4aa; font-weight: 700; color: #111; cursor: pointer; }
 .card-frames button[aria-pressed="true"] { border-color: var(--blood); box-shadow: 0 0 0 3px rgba(176,0,26,.2); }
 .card-frames span { display: grid; gap: 6px; width: 76px; padding: 6px 6px 8px; box-shadow: 0 6px 10px -6px #0008; font-size: 11px; text-align: left; }
