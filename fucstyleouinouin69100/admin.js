@@ -202,7 +202,7 @@
     }));
   }
 
-  const BANNER_PRESETS = [['Rouge', '#b0001a', '#ffffff', '#ff2a44'], ['Noir', '#0a0a0a', '#ffffff', '#e0001f'], ['Jaune', '#ffd400', '#0a0a0a', '#c4001d'], ['Blanc', '#ffffff', '#0a0a0a', '#c4001d'], ['Béton', '#8d877c', '#ffffff', '#c4001d'], ['Beige', '#ebe8e1', '#0a0a0a', '#c4001d']];
+  const BANNER_PRESETS = [['Fond du site', '#cdc8be', '#0a0a0a', '#c4001d'], ['Rouge', '#b0001a', '#ffffff', '#ff2a44'], ['Noir', '#0a0a0a', '#ffffff', '#e0001f'], ['Jaune', '#ffd400', '#0a0a0a', '#c4001d'], ['Blanc', '#ffffff', '#0a0a0a', '#c4001d'], ['Béton', '#8d877c', '#ffffff', '#c4001d'], ['Beige', '#ebe8e1', '#0a0a0a', '#c4001d']];
   const DROP_SVG = '<svg class="bn-drop" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 3C32 3 11 28.5 11 41.5C11 53.1 20.4 62 32 62C43.6 62 53 53.1 53 41.5C53 28.5 32 3 32 3Z"/></svg>';
   function getPath(o, p) { return p.split('.').reduce((a, k) => (a == null ? a : a[k]), o); }
   function setPath(o, p, v) { const ks = p.split('.'); const last = ks.pop(); const t = ks.reduce((a, k) => (a[k] = a[k] || {}), o); t[last] = v; }
@@ -261,9 +261,9 @@
     container.innerHTML = `<div class="cover-pick"><img${shown ? ` src="${esc(shown)}"` : ''} alt="" data-prev>
       <div class="stack" style="gap:8px"><label class="btn btn--sm" style="width:max-content">${I('upload')} Choisir une image<input type="file" accept="image/*" hidden></label>
       <input class="input" placeholder="…ou colle un lien d’image (https://…)" value="${/^data:/.test(current || '') ? '' : esc(current || '')}" data-url>
-      <button class="btn btn--sm" type="button" data-adjust style="width:max-content"${current ? '' : ' hidden'}>Régler le cadrage</button></div></div>`;
+      <button class="btn btn--sm" type="button" data-adjust style="width:max-content"${current ? '' : ' hidden'}>Caler la photo (cadrage, zoom)</button></div></div>`;
     let cur = current;
-    $('[data-adjust]', container).addEventListener('click', () => adjustImage(cur, { onDone: opts.onAdjusted }));
+    $('[data-adjust]', container).addEventListener('click', () => adjustImage(cur, { onDone: opts.onAdjusted, ratio: opts.ratio }));
     const prev = $('[data-prev]', container);
     $('input[type=file]', container).addEventListener('change', async (e) => {
       const f = e.target.files[0]; if (!f) return;
@@ -307,7 +307,7 @@
   /* ---------- squelette ---------- */
   const NAV = [
     ['Pilotage', [['#/', 'Vue d’ensemble', 'home']]],
-    ['Boutique', [['#/produits', 'Produits', 'box'], ['#/stock', 'Stock', 'layers'], ['#/commandes', 'Commandes', 'cart', () => D.orders.filter((o) => o.status === 'payee').length], ['#/clients', 'Clients', 'users'], ['#/notifications', 'Notifications', 'bell'], ['#/promos', 'Promotions', 'tag'], ['#/livraison', 'Livraison', 'box']]],
+    ['Boutique', [['#/produits', 'Produits', 'box'], ['#/stock', 'Stock', 'layers'], ['#/commandes', 'Commandes', 'cart', () => D.orders.filter((o) => o.status === 'payee').length], ['#/clients', 'Clients', 'users'], ['#/team', 'La team', 'mail', () => (D.subscribers || []).filter((x) => !x.seen).length], ['#/notifications', 'Notifications', 'bell'], ['#/promos', 'Promotions', 'tag'], ['#/livraison', 'Livraison', 'box']]],
     ['Contenu', [['#/magazine', 'L’actu', 'pen'], ['#/sections', 'Mise en page', 'layers'], ['#/site', 'Textes & photos', 'layout'], ['#/design', 'Charte graphique', 'pen'], ['#/musique', 'Musique & scène', 'music'], ['#/legal', 'Pages légales', 'layout'], ['#/messages', 'Messages', 'mail', () => D.messages.filter((m) => !m.read).length]]],
     ['Compte', [['#/reglages', 'Mon profil', 'users']]]
   ];
@@ -350,7 +350,7 @@
     const name = parts[0] || 'apercu';
     const v = views[name] || views.apercu;
     drawNav();
-    if (REMOTE && ['apercu', 'commandes', 'clients', 'messages', 'notifications'].includes(name) && !dirty && Date.now() - (route.last || 0) > 4000) {
+    if (REMOTE && ['apercu', 'commandes', 'clients', 'messages', 'notifications', 'team'].includes(name) && !dirty && Date.now() - (route.last || 0) > 4000) {
       route.last = Date.now();
       S.api('admin').then((r) => { if (r.ok && r.data) { ['orders', 'messages', 'subscribers'].forEach((l) => (D[l] = r.data[l] || [])); pullStock(r.data.site); takeSnap(); lastCount = D.orders.length; drawNav(); if (current === name) route(); } });
     }
@@ -976,7 +976,7 @@
       const v = val();
       $('[data-ex]', dlg).innerHTML = pp && v > 0 ? `Exemple : ${esc(pp.name)} <s>${money(pp.price)}</s> <b>${money(Math.max(0, r.type === 'percent' ? pp.price * (1 - v / 100) : pp.price - v))}</b>` : '';
       if (r.scope === 'products') $('[data-pcount]', dlg).textContent = r.target.length + ' produit' + (r.target.length > 1 ? 's' : '') + ' choisi' + (r.target.length > 1 ? 's' : '');
-      const bp = $('[data-bprev]', dlg); if (bp) { $('[data-bannerbox]', dlg).hidden = !form.banner.checked; bp.innerHTML = esc(form.bannerText.value || form.name.value || 'Ton message ici').replace(/🩸/g, DROP_SVG); bp.style.background = bc.bannerBg; bp.style.color = bc.bannerFg; bp.style.setProperty('--drop', bc.bannerDrop); }
+      const bp = $('[data-bprev]', dlg); if (bp) { $('[data-bannerbox]', dlg).hidden = !form.banner.checked; bp.innerHTML = esc(form.bannerText.value || form.name.value || 'Ton message ici').replace(/🩸/g, DROP_SVG).replace(/([−-]\s?\d+(?:[.,]\d+)?\s?(?:%|€))/, '<span class="ann-burst">$1</span>'); bp.style.background = bc.bannerBg; bp.style.color = bc.bannerFg; bp.style.setProperty('--drop', bc.bannerDrop); }
     };
     $$('[data-unit]', dlg).forEach((b) => b.addEventListener('click', () => { r.type = b.dataset.unit; $$('[data-unit]', dlg).forEach((x) => x.setAttribute('aria-pressed', x === b)); sync(); }));
     $$('[data-scope]', dlg).forEach((b) => b.addEventListener('click', () => {
@@ -1016,7 +1016,7 @@
         if (!r.code) return toast('Indique le code.', true);
         if (D.promos.some((p, i) => p.code === r.code && i !== idx)) return toast('Ce code existe déjà.', true);
       } else {
-        r.name = form.name.value.trim() || valueLabel(r) + ' — ' + scopeLabel(r); r.banner = form.banner.checked; r.bannerText = form.bannerText.value.trim(); Object.assign(r, bc); delete r.bannerStyle;
+        r.name = form.name.value.trim() || valueLabel(r) + ' — ' + scopeLabel(r); r.banner = form.banner.checked; r.bannerText = form.bannerText.value.trim(); Object.assign(r, bc, { bannerV: 2 }); delete r.bannerStyle;
       }
       if (idx != null) list[idx] = r; else list.unshift(r);
       save(isCode ? 'Code enregistré' : 'Promotion enregistrée'); dlg.close(); dlg.remove(); route();
@@ -1401,7 +1401,7 @@
   /* ================= TYPOS & COULEURS ================= */
   const FONTS_DISPLAY = ['Big Shoulders Stencil Display', 'Anton', 'Bebas Neue', 'Oswald', 'Archivo Black', 'Bungee', 'Rubik Mono One', 'Permanent Marker', 'Rock Salt', 'Black Ops One', 'Teko', 'Staatliches'];
   const FONTS_TEXT = ['Archivo', 'Inter', 'DM Sans', 'Space Grotesk', 'Work Sans', 'Manrope', 'Rubik', 'IBM Plex Sans', 'Space Mono'];
-  const DESIGN_DEFAULT = { display: 'Big Shoulders Stencil Display', text: 'Archivo', blood: '#b0001a', wall: '#b9b4aa', paper: '#ebe8e1', titleScale: 1, upper: true, cards: 'beige', photoBg: '#d3cdc2' };
+  const DESIGN_DEFAULT = { display: 'Big Shoulders Stencil Display', text: 'Archivo', blood: '#b0001a', wall: '#cdc8be', paper: '#f3f1ec', titleScale: 1, upper: true, cards: 'beige', photoBg: '#d3cdc2' };
   views.design = (c) => {
     const ds = Object.assign({}, DESIGN_DEFAULT, D.design || {});
     const fam = (f) => 'family=' + f.replace(/ /g, '+') + ':wght@400;700;900';
@@ -1534,7 +1534,7 @@
       <div class="savebar"><span class="note" data-dirty>${isNew ? 'Nouvel article' : 'À jour'}</span>${isNew ? '' : `<button class="btn btn--danger" type="button" data-delete>${I('trash')} Supprimer</button>`}
         <button class="btn" type="button" data-draft>Enregistrer en brouillon</button><button class="btn btn--primary" type="button" data-pub>Publier</button></div>`;
     bindFields(c, a, (k, v) => { mark(); if (k === 'title' && (isNew || !a.slug)) { a.slug = S.slugify(v); $('#aslug').value = a.slug; } });
-    imgPicker($('[data-cover]', c), a.cover, (u) => { a.cover = u; mark(); seo(); });
+    imgPicker($('[data-cover]', c), a.cover, (u) => { a.cover = u; mark(); seo(); }, { ratio: '16 / 10', onAdjusted: () => mark() });
     const ta = $('.md-area', c);
 
     /* score SEO en direct */
@@ -1808,6 +1808,7 @@
     };
     f.addEventListener('change', refresh);
     if (preset.email) { $('#na', dlg).value = 'one'; $('#no', dlg).value = preset.email; }
+    if (preset.aud) { $('#na', dlg).value = preset.aud; $('#na', dlg).dispatchEvent(new Event('change')); }
     refresh();
     $$('[data-tpl]', dlg).forEach((b) => b.addEventListener('click', () => { const t = TPL[b.dataset.tpl]; f.subject.value = t[0]; f.body.value = t[1]; }));
     $('[data-cancel]', dlg).addEventListener('click', () => { dlg.close(); dlg.remove(); });
@@ -1833,6 +1834,26 @@
       dlg.close(); dlg.remove(); if (current === 'notifications') route();
     });
   }
+
+  /* ================= LA TEAM (inscrits « Je rejoins ») ================= */
+  views.team = (c) => {
+    const subs = [...(D.subscribers || [])].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    const fresh = subs.filter((x) => !x.seen).length;
+    const week = subs.filter((x) => Date.now() - +new Date(x.date) < 7 * 86400000).length;
+    c.innerHTML = head('La team', 'Les fans qui ont laissé leur email avec « Je rejoins la team » en bas du site.', subs.length ? `<button class="btn" type="button" data-copyall>${I('copy')} Copier tous les emails</button><button class="btn btn--primary" type="button" data-writeall>${I('mail')} Écrire à toute la team</button>` : '')
+      + `<div class="kpis" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><div class="l">Dans la team</div><div class="v">${subs.length}</div><div class="d">emails récoltés</div></div>
+        <div class="kpi"><div class="l">Cette semaine</div><div class="v">${week}</div><div class="d">nouveaux inscrits</div></div>
+        <div class="kpi"><div class="l">Nouveaux</div><div class="v">${fresh}</div><div class="d">depuis ta dernière visite</div></div></div>
+      <section class="panel"><div class="panel-head"><div><h2>Les inscrits</h2><p>Les emails partent de ta propre adresse (Gmail, Outlook…), en copie cachée : personne ne voit les adresses des autres.</p></div>${subs.length ? `<button class="btn btn--sm" type="button" data-exp>${I('download')} Exporter (CSV)</button>` : ''}</div>
+        ${subs.length ? `<div class="table-wrap"><table class="t"><thead><tr><th>Email</th><th>Inscrit le</th><th></th></tr></thead><tbody>${subs.map((x) => `<tr style="cursor:default"><td><b>${esc(x.email)}</b>${x.seen ? '' : ' <span class="tag" style="background:var(--blood);color:#fff">nouveau</span>'}</td><td>${fmtDT(x.date)}</td>
+          <td class="num"><a class="btn btn--sm" href="mailto:${esc(x.email)}">${I('mail')} Écrire</a> <button class="btn btn--icon btn--sm btn--ghost btn--danger" type="button" data-rm="${esc(x.email)}" aria-label="Retirer">${I('trash')}</button></td></tr>`).join('')}</tbody></table></div>`
+        : '<div class="empty-state"><b>Personne pour l’instant</b>Dès qu’un fan tape son email dans « Je rejoins la team » en bas du site, il apparaît ici.</div>'}</section>`;
+    if (fresh) { (D.subscribers || []).forEach((x) => (x.seen = true)); queueSync(); try { S.save(D); } catch (e) {} drawNav(); }
+    const ca = $('[data-copyall]', c); if (ca) ca.addEventListener('click', async () => { const t = subs.map((x) => x.email).join(', '); try { await navigator.clipboard.writeText(t); toast(subs.length + ' emails copiés — colle-les en « Cci » dans ton mail'); } catch (e) { download('team-fucstyle.txt', t); } });
+    const wa = $('[data-writeall]', c); if (wa) wa.addEventListener('click', () => composer({ aud: 'subs' }));
+    const ex = $('[data-exp]', c); if (ex) ex.addEventListener('click', () => download('team-fucstyle.csv', csv([['Email', 'Date']].concat(subs.map((x) => [x.email, fmtDate(x.date)]))), 'text/csv'));
+    $$('[data-rm]', c).forEach((b) => b.addEventListener('click', async () => { if (await confirmBox('Retirer de la team ?', b.dataset.rm + ' ne recevra plus tes messages.', 'Retirer')) { D.subscribers = D.subscribers.filter((x) => x.email !== b.dataset.rm); save('Retiré de la team'); route(); } }));
+  };
 
   views.notifications = (c) => {
     const all = members(); const an = D.site.announcement;

@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   if (!/^\S+@\S+\.\S+$/.test(email)) return send(res, 400, { error: 'email' });
   if (b.type === 'subscribe') {
     const subs = await getList('subscribers');
-    if (!subs.some((s) => s.email === email)) { subs.unshift({ email, date: new Date().toISOString() }); await setList('subscribers', subs); }
+    if (!subs.some((s) => s.email === email)) { subs.unshift({ email, date: new Date().toISOString() }); await setList('subscribers', subs); await pushToAdmin({ title: 'Nouveau dans la team 🩸', body: email + ' a rejoint la team (' + subs.length + ' inscrits)', url: './#/team' }); }
     return send(res, 200, { ok: true });
   }
   const msg = { id: 'msg-' + Date.now().toString(36), date: new Date().toISOString(), read: false, name: clip(b.name, 120), email, phone: clip(b.phone, 40), subject: clip(b.subject, 60), message: clip(b.message, 5000) };

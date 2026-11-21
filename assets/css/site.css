@@ -4,9 +4,9 @@
 
 :root {
   --ink: #000000;
-  --wall: #b9b4aa;
-  --wall-dark: #a29d93;
-  --paper: #ebe8e1;
+  --wall: #cdc8be;
+  --wall-dark: #b9b4aa;
+  --paper: #f3f1ec;
   --white: #ffffff;
   --blood: #b0001a;
   --blood-dark: #7d0012;
@@ -30,7 +30,7 @@
   --max: 1320px;
   --header: 68px;
 
-  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .38 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
   --stain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='900' height='900'><filter id='s'><feTurbulence type='fractalNoise' baseFrequency='.008' numOctaves='4' seed='7'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .22 0'/></filter><rect width='100%' height='100%' filter='url(%23s)'/></svg>");
 }
 
@@ -482,7 +482,7 @@ a.poster:hover, a.poster:focus-visible { transform: rotate(0deg) translateY(-4px
 .form-msg { padding: 14px 16px; background: var(--blood); color: var(--white); font-weight: 600; }
 
 .contact-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(32px, 6vw, 96px); align-items: center; }
-@media (max-width: 900px) { .contact-layout { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .contact-layout { grid-template-columns: minmax(0, 1fr); } }
 .contact-layout h2 { font-size: var(--step-4); margin-bottom: 18px; }
 .contact-img img { width: 100%; aspect-ratio: 4/5; object-fit: cover; }
 
@@ -822,7 +822,7 @@ img.sticker { border-radius: 50%; background: var(--white); border: 4px solid va
 html.is-loading main { opacity: 0; } main { transition: opacity .2s; }
 
 /* contact : le message arrive dans le tableau de bord */
-.direct-note { display: flex; align-items: center; gap: 10px; margin-top: 18px; padding: 12px 16px; background: var(--ink, #111); color: #fff; font-weight: 700; width: max-content; max-width: 100%; transform: rotate(-.6deg); }
+.direct-note { display: flex; align-items: center; gap: 10px; margin-top: 18px; padding: 12px 16px; background: var(--ink, #111); color: #fff; font-weight: 700; width: fit-content; max-width: 100%; box-sizing: border-box; transform: rotate(-.6deg); text-align: left; }
 .direct-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--blood); flex: none; box-shadow: 0 0 0 4px rgba(176,0,26,.35); }
 @media (max-width: 700px) { .direct-note { margin-inline: auto; } }
 .announce { font-family: var(--f-display); font-weight: 900; text-transform: uppercase; letter-spacing: .02em; font-size: 1.05rem; }
@@ -851,3 +851,61 @@ html.is-loading main { opacity: 0; } main { transition: opacity .2s; }
 .ph img { mix-blend-mode: multiply; background: transparent !important; }
 .ph img[data-cut] { mix-blend-mode: normal; }
 .product-card.is-out .ph img { mix-blend-mode: multiply; }
+
+/* ===== contact mobile ===== */
+.contact-layout > * { min-width: 0; }
+@media (max-width: 900px) {
+  .contact-layout h1, .contact-layout h2 { font-size: clamp(2rem, 9vw, 3rem); overflow-wrap: anywhere; }
+  .contact-layout .lead { font-size: 1.05rem; }
+  .contact-layout form, .contact-layout input, .contact-layout select, .contact-layout textarea { max-width: 100%; box-sizing: border-box; }
+  .contact-layout .grid-2, .contact-layout .form-row { grid-template-columns: minmax(0, 1fr) !important; }
+  .contact-layout .socials { justify-content: center; flex-wrap: wrap; }
+  .contact-img { width: 100%; }
+}
+
+/* ===== bas de page : bord net, plus de bande grise ===== */
+.footer-tear { display: none; }
+.site-footer { margin-top: 0; }
+
+/* ===== photos : on garde les têtes ===== */
+.tile img, .story img { object-position: 50% 28%; }
+@media (max-width: 760px) { .tile { aspect-ratio: 4 / 3; } }
+
+/* ===== bandeau promo : fond du site, texte noir, goutte rouge, remise en étiquette jaune ===== */
+.announce { color: var(--ink); background: var(--wall); border-bottom: 2px solid var(--ink); }
+.ann-burst { display: inline-grid; place-items: center; background: #ffd400; color: var(--ink); font-family: var(--f-display); font-weight: 900; padding: .28em .55em; margin: 0 .25em; transform: rotate(-4deg); line-height: 1; white-space: nowrap;
+  clip-path: polygon(50% 0, 60% 10%, 74% 4%, 78% 18%, 93% 18%, 89% 33%, 100% 42%, 90% 54%, 98% 68%, 84% 72%, 83% 88%, 68% 85%, 58% 98%, 48% 88%, 34% 97%, 29% 83%, 13% 85%, 15% 70%, 1% 62%, 11% 50%, 2% 37%, 16% 31%, 14% 15%, 30% 17%, 37% 3%); padding: .55em .75em; }
+
+/* ===== menu mobile : Instagram en premier, centré ===== */
+@media (max-width: 900px) {
+  .nav-socials a:first-child { grid-column: 1 / -1; justify-content: center; background: var(--white); color: var(--ink); font-size: 1.05rem; padding: 14px; }
+  .nav-socials a:last-child:nth-child(odd) { grid-column: auto; }
+}
+
+/* ===== appli (web app) ===== */
+.app-dl { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin-top: 24px; padding: 15px; background: var(--blood); color: #fff; border: 0; font-family: var(--f-display); font-weight: 900; font-size: 1.25rem; text-transform: uppercase; letter-spacing: .02em; cursor: pointer; flex: none; }
+.app-dl svg { width: 22px; height: 22px; }
+.nav .app-dl { display: none; }
+@media (max-width: 900px) { .nav .app-dl { display: flex; } }
+.footer-app { margin: 28px 0 0; display: flex; justify-content: center; }
+.app-dl--foot { width: auto; padding: 12px 22px; font-size: 1.05rem; margin: 0; }
+.is-app .app-dl, .is-app .footer-app { display: none !important; }
+.app-guide { border: 0; padding: 28px 24px; width: min(420px, calc(100vw - 32px)); background: var(--paper); color: var(--ink); text-align: center; box-shadow: 0 30px 60px -20px #000c; }
+.app-guide::backdrop { background: rgba(0,0,0,.6); }
+.app-guide img { border-radius: 16px; }
+.app-guide h2 { font-size: 2rem; margin: 10px 0 14px; }
+.app-guide ol { text-align: left; margin: 0 0 20px; padding-left: 22px; line-height: 1.6; font-size: 1.05rem; }
+.app-guide li { margin-bottom: 8px; }
+.app-guide .btn { width: 100%; }
+
+/* ===== tuiles accueil sur mobile : on voit les têtes ===== */
+@media (max-width: 760px) {
+  .tile { aspect-ratio: 1 / 1; }
+  .tile img { object-position: 50% 8%; }
+}
+
+/* discographie : toutes les pochettes alignées en haut, textes dessous */
+.discs { align-items: start !important; }
+.disc { align-self: start; }
+.disc .sleeve img { aspect-ratio: 1 / 1; object-fit: cover; }
+.disc h3 { min-height: 0; }
