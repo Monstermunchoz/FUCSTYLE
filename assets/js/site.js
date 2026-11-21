@@ -59,7 +59,6 @@
         <div class="footer-side">
           <img class="sticker sticker--foot" data-mark alt="69💯 le🩸">
           ${socialsHTML()}
-          <a class="footer-mail" href="mailto:${esc(site.email)}">${esc(site.email)}</a>
         </div>
       </div>
       <div class="footer-bottom"><span>© ${new Date().getFullYear()} Fucstyle — <a href="${esc(site.bercailUrl)}" target="_blank" rel="noopener">Bercail Records</a></span>
@@ -76,11 +75,11 @@
     });
 
     const sp = S.sitePromo(D);
-    const an = sp ? { active: true, text: sp.bannerText || sp.name, url: 'boutique.html' } : site.announcement;
+    const an = sp ? { active: true, text: sp.bannerText || sp.name, url: 'boutique.html', style: sp.bannerStyle } : site.announcement;
     if (an && an.active && an.text) {
       let seen = ''; try { seen = sessionStorage.getItem('fucstyle:announce'); } catch (e) {}
       if (seen !== an.text) {
-        const bar = document.createElement('div'); bar.className = 'announce'; bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', 'Annonce');
+        const bar = document.createElement('div'); bar.className = 'announce' + (an.style === 'noir' ? ' announce--noir' : ''); bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', 'Annonce');
         bar.innerHTML = (an.url ? `<a href="${esc(an.url)}">${esc(an.text)}</a>` : esc(an.text)) + '<button type="button" aria-label="Fermer l’annonce">×</button>';
         $('button', bar).addEventListener('click', () => { bar.remove(); try { sessionStorage.setItem('fucstyle:announce', an.text); } catch (e) {} });
         document.body.prepend(bar);
@@ -275,16 +274,14 @@
         msg.innerHTML = '<p class="form-msg">Ajoute ton email et ton message pour envoyer.</p>'; return;
       }
       if (S.remote) {
-        S.remoteContact({ type: 'message', ...fd }).then((ok) => { msg.innerHTML = ok ? '<p class="form-msg">Message envoyé. On te répond vite.</p>' : '<p class="form-msg">L’envoi a échoué. Écris directement à ' + esc(site.email) + '.</p>'; if (ok) f.reset(); });
+        S.remoteContact({ type: 'message', ...fd }).then((ok) => { msg.innerHTML = ok ? '<p class="form-msg">Message envoyé. On te répond vite.</p>' : '<p class="form-msg">L’envoi a échoué. Vérifie ta connexion et réessaie.</p>'; if (ok) f.reset(); });
         return;
       }
       D.messages = D.messages || [];
       D.messages.unshift({ id: S.uid('msg'), date: new Date().toISOString(), read: false, ...fd });
       S.save(D);
-      const body = encodeURIComponent(`${fd.message}\n\n${fd.name || ''} — ${fd.email}${fd.phone ? ' — ' + fd.phone : ''}`);
       msg.innerHTML = `<p class="form-msg">Message envoyé. On te répond vite.</p>`;
       f.reset();
-      window.location.href = `mailto:${site.email}?subject=${encodeURIComponent('[' + fd.subject + '] Message depuis fucstyle.fr')}&body=${body}`;
     });
   }
 
@@ -479,7 +476,6 @@
       $('[data-contact-title]').textContent = site.contactTitle;
       $('[data-contact-text]').textContent = site.contactText;
       $('[data-contact-img]').src = site.contactImage;
-      $('[data-email]').href = 'mailto:' + site.email; $('[data-email]').textContent = site.email;
       $('[data-socials]').innerHTML = socialsHTML();
       contactForm($('[data-contact-form]'), false);
     },
@@ -559,7 +555,7 @@
               const order = await S.remoteOrder({ customer: fd, lines: lines.map((l) => ({ productId: l.productId, variantKey: l.variantKey, qty: l.qty })), code: promo ? promo.code : '', payment, paypalId: ref || '', paidTotal: total() });
               S.setCart([]); thanks(order);
             } catch (err) {
-              $('[data-paybox]').innerHTML = `<p class="form-msg">Ton paiement est bien passé (référence PayPal ${esc(ref || '')}), mais la commande n’a pas pu être enregistrée. Écris-nous à ${esc(site.email)} avec cette référence, on s’en occupe tout de suite.</p>`;
+              $('[data-paybox]').innerHTML = `<p class="form-msg">Ton paiement est bien passé (référence PayPal ${esc(ref || '')}), mais la commande n’a pas pu être enregistrée. Envoie-nous cette référence via la page <a href="contact.html">Booking / contact</a>, on s’en occupe tout de suite.</p>`;
             }
             return;
           }
@@ -634,7 +630,10 @@
   function applyDesign() {
     const ds = D.design; if (!ds) return;
     const r = document.documentElement.style;
-    const fams = [ds.display, ds.text].filter(Boolean);
+    const CF = D.customFonts || [];
+    const files = CF.filter((f) => f.url && (f.name === ds.display || f.name === ds.text));
+    if (files.length) { const st = document.createElement('style'); st.textContent = files.map((f) => `@font-face{font-family:'${String(f.name).replace(/'/g, '')}';src:url('${String(f.url).replace(/'/g, '%27')}');font-display:swap}`).join(''); document.head.append(st); }
+    const fams = [ds.display, ds.text].filter((f) => f && !files.some((x) => x.name === f));
     if (fams.length) {
       const l = document.createElement('link'); l.rel = 'stylesheet';
       l.href = 'https://fonts.googleapis.com/css2?' + fams.map((f) => 'family=' + f.replace(/ /g, '+') + ':wght@400;600;700;800;900').join('&') + '&display=swap';

@@ -5,7 +5,7 @@
   const U = 'https://fucstyle.fr/wp-content/uploads/';
 
   window.FUC_DEFAULTS = {
-    version: 11,
+    version: 12,
 
     site: {
       logo: U + '2023/02/Design-sans-titre-47.png',
@@ -208,7 +208,7 @@
     posts: [], // rempli par posts.js
 
     promotions: [
-      { id: 'pr-25', name: '−25 % sur tout le site', type: 'percent', value: 25, scope: 'all', target: '', active: true, start: '', end: '', banner: true }
+      { id: 'pr-25', name: 'Vendredi noir — 1 an du projet', type: 'percent', value: 25, scope: 'all', target: '', active: true, start: '', end: '', banner: true, bannerText: '🥷 VENDREDI NOIR 🥷 Le projet 69💯 Le🩸 fête ses 1 an : −25% sur tout le site', bannerStyle: 'noir' }
     ],
 
     imgMeta: {},

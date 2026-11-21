@@ -257,6 +257,12 @@
     let data = null; try { data = await r.json(); } catch (e) {}
     return { ok: r.ok, status: r.status, data };
   };
+  /* complète les promos déjà en base avec les nouveaux réglages par défaut (texte du bandeau…) */
+  Store.fill = function (d) {
+    const def = (window.FUC_DEFAULTS.promotions || []);
+    (d.promotions || []).forEach((p) => { const o = def.find((x) => x.id === p.id); if (!o) return; if (!p.bannerText && o.bannerText) { p.bannerText = o.bannerText; if (o.name) p.name = o.name; } if (!p.bannerStyle && o.bannerStyle) p.bannerStyle = o.bannerStyle; });
+    return d;
+  };
   /* contenu public du site depuis la base */
   Store.pull = async function () {
     if (window.__FUC_PREVIEW || location.protocol === 'file:') return null;
@@ -266,7 +272,7 @@
       Store.remote = r.status === 200 || r.status === 404;
       if (r.status !== 200) return null;
       const d = Object.assign(JSON.parse(JSON.stringify(window.FUC_DEFAULTS)), r.data, { orders: [], messages: [], subscribers: [] });
-      d.version = window.FUC_DEFAULTS.version;
+      d.version = window.FUC_DEFAULTS.version; Store.fill(d);
       try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {}
       return d;
     } catch (e) { return null; }

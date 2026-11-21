@@ -100,9 +100,10 @@
     }
     D = Object.assign(clone(window.FUC_DEFAULTS), x.site, { orders: x.orders || [], messages: x.messages || [], subscribers: x.subscribers || [] });
     D.version = window.FUC_DEFAULTS.version;
+    const before = JSON.stringify(D.promotions); S.fill(D); const filled = before !== JSON.stringify(D.promotions);
     D.settings = Object.assign({ owner: 'Jeff' }, x.site.settings || {});
     D.messages = D.messages || [];
-    S.save(D); REMOTE = true; takeSnap(); stockBase = stockMap(); return true;
+    S.save(D); REMOTE = true; takeSnap(); stockBase = stockMap(); if (filled) setTimeout(queueSync, 600); return true;
   }
   function logout() { try { sessionStorage.removeItem('fucstyle:admin'); sessionStorage.removeItem('fucstyle:token'); } catch (e) {} REMOTE = false; loginView(); }
 
@@ -127,6 +128,71 @@
       d.addEventListener('cancel', () => { d.remove(); res(false); });
     });
   }
+  /* ---------- appli téléphone : installation en un bouton + notifications ---------- */
+  let installEvt = null;
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; document.querySelectorAll('[data-appinstall]').forEach((b) => (b.hidden = false)); });
+  window.addEventListener('appinstalled', () => { installEvt = null; try { localStorage.setItem('fucstyle:appok', '1'); } catch (e) {} route(); });
+  const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const appInstalled = () => { if (isStandalone()) return true; try { return localStorage.getItem('fucstyle:appok') === '1'; } catch (e) { return false; } };
+  const notifOn = () => 'Notification' in window && Notification.permission === 'granted';
+  function stepDialog(title, steps, foot) {
+    const dlg = document.createElement('dialog'); dlg.className = 'confirm'; dlg.style.width = 'min(520px, calc(100vw - 24px))';
+    dlg.innerHTML = `<h3 style="font-family:var(--f-display);font-weight:900;text-transform:uppercase;font-size:1.9rem;line-height:1">${title}</h3>
+      <ol class="big-steps">${steps.map((st) => `<li><span>${st}</span></li>`).join('')}</ol>${foot || ''}
+      <div class="actions" style="justify-content:flex-end"><button class="btn btn--primary" type="button" data-x>J’ai compris</button></div>`;
+    document.body.append(dlg); dlg.showModal();
+    $('[data-x]', dlg).addEventListener('click', () => { dlg.close(); dlg.remove(); });
+    return dlg;
+  }
+  async function installApp() {
+    if (installEvt) { installEvt.prompt(); const r = await installEvt.userChoice; installEvt = null; if (r && r.outcome === 'accepted') { try { localStorage.setItem('fucstyle:appok', '1'); } catch (e) {} toast('Appli installée : l’icône Fucstyle est sur ton écran d’accueil'); } return; }
+    if (isStandalone()) return toast('Tu es déjà dans l’appli.');
+    const url = location.href.split('#')[0];
+    if (isIOS()) {
+      if (/CriOS|FxiOS|EdgiOS/.test(navigator.userAgent)) return stepDialog('Ouvre Safari', [`Sur iPhone, l’appli s’installe <b>seulement depuis Safari</b>.`, `Copie l’adresse ci-dessous et colle-la dans <b>Safari</b>.`, `Puis appuie de nouveau sur <b>Télécharger l’appli</b>.`], `<div class="copy-url"><input readonly value="${esc(url)}"><button class="btn btn--sm" type="button" data-copy>Copier</button></div>`).querySelector('[data-copy]').addEventListener('click', (e) => { navigator.clipboard && navigator.clipboard.writeText(url); e.target.textContent = 'Copié'; });
+      return stepDialog('3 touches et c’est installé', [`Appuie sur le bouton <b>Partager</b> <span class="ios-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 8l5-5 5 5M5 12v8h14v-8"/></svg></span> en bas de Safari.`, `Descends et appuie sur <b>« Sur l’écran d’accueil »</b> <span class="ios-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/></svg></span>`, `Appuie sur <b>Ajouter</b>. Ouvre ensuite l’appli Fucstyle depuis ton écran d’accueil et appuie sur <b>Activer les notifications</b>.`]);
+    }
+    if (!/Android|Mobi/.test(navigator.userAgent)) {
+      return stepDialog('Ouvre-le sur ton téléphone', [`Ouvre cette adresse sur ton téléphone (envoie-la-toi par SMS ou WhatsApp) :`, `Connecte-toi, puis appuie sur <b>Télécharger l’appli</b>.`], `<div class="copy-url"><input readonly value="${esc(url)}"><button class="btn btn--sm" type="button" data-copy>Copier</button></div>`).querySelector('[data-copy]').addEventListener('click', (e) => { navigator.clipboard && navigator.clipboard.writeText(url); e.target.textContent = 'Copié'; });
+    }
+    stepDialog('Installer l’appli', [`Ouvre cette page dans <b>Chrome</b>.`, `Appuie sur le menu <b>⋮</b> en haut à droite.`, `Appuie sur <b>« Installer l’application »</b> (ou « Ajouter à l’écran d’accueil »).`]);
+  }
+  async function enableNotifs(out) {
+    const say = (t) => { if (out) out.textContent = t; };
+    if (isIOS() && !isStandalone()) { say(''); return stepDialog('D’abord l’appli', [`Sur iPhone, les notifications marchent <b>seulement dans l’appli</b>.`, `Appuie sur <b>Télécharger l’appli</b>, installe-la, ouvre-la depuis l’écran d’accueil.`, `Dans l’appli, appuie sur <b>Activer les notifications</b>.`]); }
+    if (!('Notification' in window)) return say('Ce navigateur ne gère pas les notifications. Installe d’abord l’appli.');
+    if (Notification.permission === 'denied') return stepDialog('Notifications bloquées', [`Tu as refusé les notifications une fois, le téléphone s’en souvient.`, isIOS() ? `Réglages du téléphone › <b>Notifications</b> › <b>Fucstyle</b> › active <b>Autoriser</b>.` : `Appui long sur l’icône Fucstyle › <b>Infos sur l’appli</b> › <b>Notifications</b> › active-les.`, `Reviens ici et appuie de nouveau sur <b>Activer les notifications</b>.`]);
+    const r = await Notification.requestPermission();
+    if (r !== 'granted') return say('Notifications pas autorisées.');
+    if (!navigator.serviceWorker) return say('Notifications autorisées.');
+    const reg = await navigator.serviceWorker.ready;
+    if (REMOTE && reg.pushManager) {
+      try {
+        const k = await S.api('admin?vapid=1');
+        const key = Uint8Array.from(atob(k.data.publicKey.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - k.data.publicKey.length % 4) % 4)), (ch) => ch.charCodeAt(0));
+        const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }));
+        await S.api('admin', { method: 'POST', body: { action: 'push', subscription: sub.toJSON() } });
+        say('Activées : tu es prévenu à chaque commande et message, même appli fermée.');
+      } catch (e) { say('Activées sur cet écran. Pour les recevoir appli fermée, installe d’abord l’appli.'); }
+    } else say('Notifications autorisées.');
+    reg.showNotification('Fucstyle', { body: 'C’est bon, les notifications sont activées 🩸', icon: 'icon-192.png' });
+    toast('Notifications activées');
+  }
+  function appCard(compact) {
+    const inst = appInstalled(), on = notifOn();
+    if (compact && inst && on) return '';
+    return `<div class="app-card${compact ? ' app-card--strip' : ''}"><img src="icon-192.png" alt="" width="56" height="56">
+      <div class="app-txt"><b>L’appli Fucstyle sur ton téléphone</b><span>Une icône sur ton écran d’accueil et une notif à chaque commande ou message.</span></div>
+      <div class="app-btns">${inst ? `${pill('ok', 'Appli installée')}` : `<button class="btn btn--primary" type="button" data-appinstall>${I('download')} Télécharger l’appli</button>`}
+      ${on ? `${pill('ok', 'Notifications activées')}` : `<button class="btn${inst ? ' btn--primary' : ''}" type="button" data-notifbtn>${I('bell')} Activer les notifications</button>`}</div>
+      <span class="hint app-st" data-notifst></span></div>`;
+  }
+  function bindAppCard(c) {
+    $$('[data-appinstall]', c).forEach((b) => b.addEventListener('click', installApp));
+    $$('[data-notifbtn]', c).forEach((b) => b.addEventListener('click', () => enableNotifs($('[data-notifst]', c))));
+  }
+
   function getPath(o, p) { return p.split('.').reduce((a, k) => (a == null ? a : a[k]), o); }
   function setPath(o, p, v) { const ks = p.split('.'); const last = ks.pop(); const t = ks.reduce((a, k) => (a[k] = a[k] || {}), o); t[last] = v; }
   /* lie les champs [data-k] d'un conteneur à un objet */
@@ -181,7 +247,7 @@
   function imgPicker(container, current, onPick, opts) {
     opts = opts || {};
     const shown = current && !/^(https?:|data:|\.\.\/)/.test(current) ? '../' + current : (current || '');
-    container.innerHTML = `<div class="cover-pick"><img src="${esc(shown)}" alt="" data-prev>
+    container.innerHTML = `<div class="cover-pick"><img${shown ? ` src="${esc(shown)}"` : ''} alt="" data-prev>
       <div class="stack" style="gap:8px"><label class="btn btn--sm" style="width:max-content">${I('upload')} Choisir une image<input type="file" accept="image/*" hidden></label>
       <input class="input" placeholder="…ou colle un lien d’image (https://…)" value="${/^data:/.test(current || '') ? '' : esc(current || '')}" data-url>
       <button class="btn btn--sm" type="button" data-adjust style="width:max-content"${current ? '' : ' hidden'}>Régler le cadrage</button></div></div>`;
@@ -304,6 +370,7 @@
     const hasDemo = D.orders.some((o) => o.demo);
 
     c.innerHTML = head(`Salut ${esc(D.settings.owner || 'Jeff')}`, 'Ce qui se passe sur la boutique et le site.', `<a class="btn" href="../index.html" target="_blank" rel="noopener">${I('ext')} Voir le site</a><a class="btn btn--primary" href="#/produits/nouveau">${I('plus')} Ajouter un produit</a>`)
+      + appCard(true)
       + (hasDemo ? `<div class="alert alert--info" style="margin-bottom:20px">${I('alert')}<div>Les commandes affichées sont des <b>exemples</b> pour tester le tableau de bord. Supprime-les dans <a href="#/reglages">Réglages</a> avant la mise en ligne.</div></div>` : '')
       + `<div class="kpis">
         <div class="kpi"><div class="l">Chiffre d’affaires (30 j)</div><div class="v">${money(sum(cur))}</div><div class="d">${delta(sum(cur), sum(prev))}</div></div>
@@ -356,6 +423,7 @@
     $$('[data-range]', c).forEach((b) => b.addEventListener('click', () => { $$('[data-range]', c).forEach((x) => x.setAttribute('aria-pressed', x === b)); drawChart(+b.dataset.range); }));
     drawChart(30);
     bindOrderRows(c);
+    bindAppCard(c);
   };
 
   function areaChart(el, pts) {
@@ -875,11 +943,14 @@
       ${isCode ? `<section class="rule-sec"><h4>Note</h4><input class="input" name="note" value="${esc(r.note || '')}" placeholder="Pour qui, pour quoi (visible seulement par toi)"></section>`
         : `<section class="rule-sec"><div class="rule-bannerrow"><h4>Bandeau en haut du site</h4><label class="switch"><input type="checkbox" name="banner"${r.banner ? ' checked' : ''}><span class="sr-only">Afficher le bandeau</span></label></div>
           <div data-bannerbox><input class="input" name="bannerText" value="${esc(r.bannerText || '')}" placeholder="Texte du bandeau, ex. −25 % sur tout le site jusqu’à dimanche">
-          <div class="rule-banner-prev" data-bprev></div></div></section>`}
+          <div class="seg" role="group" aria-label="Couleur du bandeau" style="margin-top:10px"><button type="button" data-bs="" aria-pressed="${!r.bannerStyle}">Rouge</button><button type="button" data-bs="noir" aria-pressed="${r.bannerStyle === 'noir'}">Noir (Vendredi noir)</button></div>
+          <div class="rule-banner-prev${r.bannerStyle === 'noir' ? ' is-noir' : ''}" data-bprev></div></div></section>`}
 
       <div class="rule-foot"><label class="switch"><input type="checkbox" name="active"${r.active ? ' checked' : ''}> Active</label><span><button class="btn" type="button" data-x>Annuler</button> <button class="btn btn--primary" type="submit">Enregistrer</button></span></div>
     </form>`;
     document.body.append(dlg); dlg.showModal();
+    let bStyle = r.bannerStyle || '';
+    $$('[data-bs]', dlg).forEach((b) => b.addEventListener('click', () => { bStyle = b.dataset.bs; $$('[data-bs]', dlg).forEach((x) => x.setAttribute('aria-pressed', x === b)); const bp = $('[data-bprev]', dlg); if (bp) bp.classList.toggle('is-noir', bStyle === 'noir'); }));
     const form = $('form', dlg);
     const val = () => +String(form.value.value).replace(',', '.') || 0;
     const sync = () => {
@@ -929,7 +1000,7 @@
         if (!r.code) return toast('Indique le code.', true);
         if (D.promos.some((p, i) => p.code === r.code && i !== idx)) return toast('Ce code existe déjà.', true);
       } else {
-        r.name = form.name.value.trim() || valueLabel(r) + ' — ' + scopeLabel(r); r.banner = form.banner.checked; r.bannerText = form.bannerText.value.trim();
+        r.name = form.name.value.trim() || valueLabel(r) + ' — ' + scopeLabel(r); r.banner = form.banner.checked; r.bannerText = form.bannerText.value.trim(); if (bStyle) r.bannerStyle = bStyle; else delete r.bannerStyle;
       }
       if (idx != null) list[idx] = r; else list.unshift(r);
       save(isCode ? 'Code enregistré' : 'Promotion enregistrée'); dlg.close(); dlg.remove(); route();
@@ -1038,26 +1109,103 @@
     lay = lay.filter((x) => secs.some(([id]) => id === x.id) || blocks.some((b) => b.id === x.id));
     return (D.layout[pg] = lay);
   }
+  /* ce qu'on peut modifier dans chaque section existante du site */
+  const SEC_EDIT = {
+    'home:hero': { f: [['heroVideo', 'Lien de la vidéo (MP4)', 'text', 'Colle le lien d’une vidéo MP4 hébergée.'], ['heroVideoStart', 'Démarrer à (secondes)', 'num']] },
+    'home:ticker': { f: [['ticker', 'Texte de la bande rouge', 'text']] },
+    'home:shop': { f: [['shopTitle', 'Titre', 'text']], link: ['#/produits', 'Gérer les produits'] },
+    'home:clip': { f: [['clipTitle', 'Titre', 'text'], ['autoplayClip', 'Musique au démarrage', 'bool'], ['introTitle', 'Nom affiché sur le bouton vinyle', 'text']], link: ['#/musique', 'Gérer les clips'] },
+    'home:bio': { f: [['bioPhoto', 'Photo', 'img'], ['bioTitle', 'Titre', 'text'], ['bioSubtitle', 'Sous-titre', 'text'], ['bioText', 'Texte', 'area'], ['bioCta', 'Phrase réseaux', 'text'], ['spotifyArtist', 'ID artiste Spotify', 'text']] },
+    'home:freestyles': { f: [], link: ['#/musique', 'Gérer les freestyles'] },
+    'home:stats': { f: [0, 1, 2, 3].flatMap((i) => [[`stats.${i}.value`, `Chiffre ${i + 1}`, 'text'], [`stats.${i}.suffix`, 'Suffixe', 'text'], [`stats.${i}.label`, 'Libellé', 'text']]) },
+    'home:inde': { f: [['indeTitle', 'Titre', 'text'], ['indeText', 'Texte', 'area'], ['bercailLogo', 'Logo Bercail', 'img'], ['bercailUrl', 'Lien Bercail', 'text']] },
+    'home:tiles': { f: [0, 1, 2].flatMap((i) => [[`tiles.${i}.label`, `Tuile ${i + 1} — texte`, 'text'], [`tiles.${i}.image`, `Tuile ${i + 1} — photo`, 'img'], [`tiles.${i}.href`, `Tuile ${i + 1} — lien`, 'text']]) },
+    'home:discs': { f: [], link: ['#/musique', 'Gérer la discographie'] },
+    'home:mag': { f: [], link: ['#/magazine', 'Gérer les articles'] },
+    'home:contact': { f: [['contactTitle', 'Titre', 'text'], ['contactText', 'Texte', 'area'], ['contactImage', 'Photo', 'img']] },
+    'shop:head': { f: [['shopBanner', 'Phrase sous « Shop »', 'text']] },
+    'shop:grid': { f: [], link: ['#/produits', 'Gérer les produits'] },
+    'clips:head': { f: [['clipsBanner', 'Photo de fond', 'img']] },
+    'clips:clip': { f: [], link: ['#/musique', 'Gérer les clips'] },
+    'clips:products': { f: [], link: ['#/produits', 'Gérer les produits'] },
+    'clips:freestyles': { f: [], link: ['#/musique', 'Gérer les freestyles'] },
+    'magazine:list': { f: [], link: ['#/magazine', 'Gérer les articles'] },
+    'about:head': { f: [['aboutIntro', 'Introduction', 'area']] },
+    'about:stats': { f: [0, 1, 2, 3].flatMap((i) => [[`stats.${i}.value`, `Chiffre ${i + 1}`, 'text'], [`stats.${i}.suffix`, 'Suffixe', 'text'], [`stats.${i}.label`, 'Libellé', 'text']]) },
+    'about:bio': { f: [['aboutPhoto', 'Photo', 'img'], ['bioTitle', 'Titre', 'text'], ['bioSubtitle', 'Sous-titre', 'text'], ['aboutText', 'Texte', 'area']] },
+    'about:inde': { f: [['indeText', 'Texte', 'area']] },
+    'about:discs': { f: [], link: ['#/musique', 'Gérer la discographie'] },
+    'about:dates': { f: [], link: ['#/musique', 'Gérer les dates'] },
+    'contact:form': { f: [['contactTitle', 'Titre', 'text'], ['contactText', 'Texte', 'area'], ['contactImage', 'Photo', 'img']], link: ['#/messages', 'Voir les messages reçus'] }
+  };
+  function sectionEditor(pg, id, name, onDone) {
+    const spec = SEC_EDIT[pg + ':' + id] || { f: [] };
+    if (!spec.f.length && spec.link) { location.hash = spec.link[0]; return; }
+    const s = clone(D.site);
+    const dlg = document.createElement('dialog'); dlg.className = 'confirm'; dlg.style.width = 'min(640px, calc(100vw - 24px))';
+    dlg.innerHTML = `<h3 style="font-family:var(--f-display);font-weight:900;text-transform:uppercase;font-size:2rem">${esc(name)}</h3>
+      <div class="stack" style="gap:14px">${spec.f.map(([k, l, t, hint], i) => t === 'img' ? `<div class="field"><span class="label">${esc(l)}</span><div data-img="${esc(k)}"></div></div>`
+        : t === 'bool' ? `<label class="switch"><input type="checkbox" data-k="${esc(k)}"> ${esc(l)}</label>`
+        : `<div class="field"><label for="se${i}">${esc(l)}</label>${t === 'area' ? `<textarea id="se${i}" data-k="${esc(k)}" style="min-height:140px"></textarea>` : `<input id="se${i}" data-k="${esc(k)}"${t === 'num' ? ' data-num inputmode="decimal"' : ''}>`}${hint ? `<span class="hint">${esc(hint)}</span>` : ''}</div>`).join('')}
+      ${spec.link ? `<a class="btn btn--sm" href="${spec.link[0]}" style="width:max-content">${esc(spec.link[1])}</a>` : ''}
+      <div class="actions" style="justify-content:flex-end"><button class="btn" type="button" data-x>Annuler</button><button class="btn btn--primary" type="button" data-ok>Enregistrer</button></div></div>`;
+    document.body.append(dlg); dlg.showModal();
+    bindFields(dlg, s);
+    $$('[data-img]', dlg).forEach((el) => imgPicker(el, getPath(s, el.dataset.img), (u) => setPath(s, el.dataset.img, u)));
+    $$('a.btn', dlg).forEach((a) => a.addEventListener('click', () => { dlg.close(); dlg.remove(); }));
+    $('[data-x]', dlg).addEventListener('click', () => { dlg.close(); dlg.remove(); });
+    $('[data-ok]', dlg).addEventListener('click', () => { D.site = s; save('Section « ' + name + ' » enregistrée'); dlg.close(); dlg.remove(); onDone && onDone(); });
+  }
+
   views.sections = (c, args) => {
     const pg = PAGES[args[0]] ? args[0] : 'home';
     const lay = layoutOf(pg);
     const secs = pg === 'home' ? HOME_SECTIONS : (PAGE_SECTIONS[pg] || []);
-    const label = (it) => { const s = secs.find(([id]) => id === it.id); if (s) return [s[1], 'Section du site']; const b = D.blocks.find((x) => x.id === it.id); return [b ? (b.title || BLOCK_TYPES[b.type]) : '—', 'Bloc : ' + (b ? BLOCK_TYPES[b.type] : '')]; };
+    const label = (it) => { const s = secs.find(([id]) => id === it.id); if (s) return [s[1], 'Section du site']; const b = D.blocks.find((x) => x.id === it.id); return [b ? (b.title || BLOCK_TYPES[b.type]) : '—', 'Bloc ajouté : ' + (b ? BLOCK_TYPES[b.type] : '')]; };
     const pageFile = { home: 'index.html', shop: 'boutique.html', clips: 'clips.html', magazine: 'magazine.html', about: 'a-propos.html', contact: 'contact.html' }[pg];
-    c.innerHTML = head('Mise en page', 'Choisis une page : réorganise ses sections, masque-les, change leurs couleurs, ajoute des blocs.', `<a class="btn" href="../${pageFile}" target="_blank" rel="noopener">${I('eye')} Voir la page</a><button class="btn btn--primary" type="button" data-add>${I('plus')} Ajouter un bloc</button>`)
+    let sel = args[1] || null;
+    c.innerHTML = head('Mise en page', 'Clique une section pour la voir sur la page. Modifie-la, déplace-la, change ses couleurs ou masque-la.', `<a class="btn" href="../${pageFile}" target="_blank" rel="noopener">${I('ext')} Ouvrir la page</a><button class="btn btn--primary" type="button" data-add>${I('plus')} Ajouter un bloc</button>`)
       + `<div class="chipset" style="margin-bottom:18px">${Object.entries(PAGES).map(([k, v]) => `<a class="btn btn--sm${k === pg ? ' btn--primary' : ''}" href="#/sections/${k}">${v}</a>`).join('')}</div>
-      <section class="panel"><div class="panel-head"><div><h2>${PAGES[pg]}</h2><p>De haut en bas, dans l’ordre d’affichage. Les blocs ajoutés peuvent être placés n’importe où.</p></div></div>
-        <div class="panel-body list-edit">${lay.length ? lay.map((it, i) => { const [t, sub] = label(it); const isBlk = !secs.some(([id]) => id === it.id); const st = ((D.sectionStyle || {})[pg] || {})[it.id]; return `<div class="list-item sec-row${it.hidden ? ' is-hidden' : ''}" style="grid-template-columns:36px minmax(0,1fr) auto">
-          <span class="sec-num">${i + 1}</span><div><b>${esc(t)}</b><br><small style="color:var(--muted)">${esc(sub)}${it.hidden ? ' — masquée' : ''}</small></div>
-          <div class="row-actions">${i ? `<button class="btn btn--icon btn--sm" type="button" data-up="${i}" aria-label="Monter">↑</button>` : ''}${i < lay.length - 1 ? `<button class="btn btn--icon btn--sm" type="button" data-down="${i}" aria-label="Descendre">↓</button>` : ''}
-            <button class="btn btn--sm" type="button" data-style="${esc(it.id)}">${st ? '<span class="swatch" style="background:' + esc(st.bg || '#fff') + '"></span>' : ''}Couleurs</button>
-            <button class="btn btn--sm" type="button" data-hide="${i}">${it.hidden ? 'Afficher' : 'Masquer'}</button>
-            ${isBlk ? `<button class="btn btn--sm" type="button" data-edit="${esc(it.id)}">Modifier</button><button class="btn btn--icon btn--sm btn--danger" type="button" data-del="${esc(it.id)}" aria-label="Supprimer">${I('trash')}</button>` : `<a class="btn btn--sm" href="#/site">Textes</a>`}</div></div>`; }).join('')
-          : '<div class="empty-state"><b>Aucun bloc sur cette page</b>Ajoute une bannière, un texte, une galerie, une vidéo…</div>'}</div></section>`;
-    const mv = (i, j) => { [lay[i], lay[j]] = [lay[j], lay[i]]; save('Ordre enregistré'); route(); };
+      <div class="lay">
+        <section class="panel lay-list"><div class="panel-head"><div><h2>${PAGES[pg]}</h2><p>De haut en bas, dans l’ordre d’affichage.</p></div></div>
+          <div class="panel-body list-edit">${lay.length ? lay.map((it, i) => { const [t, sub] = label(it); const isBlk = !secs.some(([id]) => id === it.id); const st = ((D.sectionStyle || {})[pg] || {})[it.id]; return `<div class="sec-card${it.hidden ? ' is-hidden' : ''}${sel === it.id ? ' is-sel' : ''}" data-sel="${esc(it.id)}">
+            <div class="sec-top"><span class="sec-num">${i + 1}</span><div class="sec-name"><b>${esc(t)}</b><small>${esc(sub)}${it.hidden ? ' — masquée' : ''}</small></div>
+              <div class="sec-move">${i ? `<button class="btn btn--icon btn--sm" type="button" data-up="${i}" aria-label="Monter">↑</button>` : ''}${i < lay.length - 1 ? `<button class="btn btn--icon btn--sm" type="button" data-down="${i}" aria-label="Descendre">↓</button>` : ''}</div></div>
+            <div class="sec-actions">
+              <button class="btn btn--sm btn--primary" type="button" data-${isBlk ? 'edit' : 'secedit'}="${esc(it.id)}">${I('pen')} Modifier</button>
+              <button class="btn btn--sm" type="button" data-style="${esc(it.id)}">${st ? '<span class="swatch" style="background:' + esc(st.bg || '#fff') + '"></span>' : ''}Couleurs</button>
+              <button class="btn btn--sm" type="button" data-hide="${i}">${it.hidden ? 'Afficher' : 'Masquer'}</button>
+              ${isBlk ? `<button class="btn btn--icon btn--sm btn--danger" type="button" data-del="${esc(it.id)}" aria-label="Supprimer">${I('trash')}</button>` : ''}</div></div>`; }).join('')
+            : '<div class="empty-state"><b>Aucun bloc sur cette page</b>Ajoute une bannière, un texte, une galerie, une vidéo…</div>'}</div></section>
+        <section class="panel lay-prev"><div class="panel-head"><h2>Aperçu</h2><div class="seg" role="group" aria-label="Écran"><button type="button" data-w="d" aria-pressed="true">Ordi</button><button type="button" data-w="m">Mobile</button></div></div>
+          <div class="lay-frame" data-box><iframe title="Aperçu de la page" data-frame></iframe></div></section>
+      </div>`;
+    /* aperçu : la vraie page, avec le contenu en cours */
+    const frame = $('[data-frame]', c), box = $('[data-box]', c); let mobile = false;
+    const fit = () => { const W = mobile ? 390 : 1280; const k = Math.min(1, box.clientWidth / W); frame.style.width = W + 'px'; frame.style.height = Math.round(box.clientHeight / k) + 'px'; frame.style.transform = `scale(${k})`; };
+    const highlight = () => {
+      const doc = frame.contentDocument; if (!doc || !sel) return;
+      doc.querySelectorAll('.lay-hl').forEach((n) => n.classList.remove('lay-hl'));
+      const n = doc.querySelector(`main > [data-sec="${sel}"], main > [data-blk="${sel}"]`);
+      if (n) { n.classList.add('lay-hl'); n.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+    };
+    const load = async () => {
+      try {
+        const html = await (await fetch('../' + pageFile, { cache: 'no-store' })).text();
+        const pv = JSON.stringify(Object.assign({}, D, { orders: [], messages: [], subscribers: [] })).replace(/</g, '\\u003c');
+        frame.srcdoc = html.replace('<head>', `<head><base href="${esc(new URL('../', location.href).href)}"><style>.lay-hl{outline:4px solid #ff2a44;outline-offset:-4px;box-shadow:0 0 0 9999px rgba(0,0,0,.35)}.music-btn,.toast{display:none!important}</style><script>window.__FUC_PREVIEW=${pv};<\/script>`);
+        frame.onload = () => { setTimeout(highlight, 400); };
+      } catch (e) { frame.src = '../' + pageFile; }
+    };
+    fit(); load(); new ResizeObserver(fit).observe(box);
+    $$('[data-w]', c).forEach((b) => b.addEventListener('click', () => { mobile = b.dataset.w === 'm'; $$('[data-w]', c).forEach((x) => x.setAttribute('aria-pressed', x === b)); fit(); setTimeout(highlight, 100); }));
+    const refresh = () => { load(); };
+    $$('[data-sel]', c).forEach((card) => card.addEventListener('click', (e) => { if (e.target.closest('button')) return; sel = card.dataset.sel; $$('[data-sel]', c).forEach((x) => x.classList.toggle('is-sel', x === card)); highlight(); }));
+    const mv = (i, j) => { [lay[i], lay[j]] = [lay[j], lay[i]]; save('Ordre enregistré'); location.hash = '#/sections/' + pg + '/' + lay[j].id; };
     $$('[data-up]', c).forEach((b) => b.addEventListener('click', () => mv(+b.dataset.up, +b.dataset.up - 1)));
     $$('[data-down]', c).forEach((b) => b.addEventListener('click', () => mv(+b.dataset.down, +b.dataset.down + 1)));
     $$('[data-hide]', c).forEach((b) => b.addEventListener('click', () => { const it = lay[+b.dataset.hide]; it.hidden = !it.hidden; save(it.hidden ? 'Section masquée' : 'Section affichée'); route(); }));
+    $$('[data-secedit]', c).forEach((b) => b.addEventListener('click', () => { sel = b.dataset.secedit; highlight(); sectionEditor(pg, b.dataset.secedit, label({ id: b.dataset.secedit })[0], refresh); }));
     $$('[data-edit]', c).forEach((b) => b.addEventListener('click', () => blockEditor(pg, b.dataset.edit)));
     $$('[data-del]', c).forEach((b) => b.addEventListener('click', async () => { if (await confirmBox('Supprimer ce bloc ?', 'Il sera retiré de la page.', 'Supprimer')) { D.blocks = D.blocks.filter((x) => x.id !== b.dataset.del); D.layout[pg] = lay.filter((x) => x.id !== b.dataset.del); save('Bloc supprimé'); route(); } }));
     $('[data-add]', c).addEventListener('click', () => blockEditor(pg, null));
@@ -1196,12 +1344,25 @@
   views.design = (c) => {
     const ds = Object.assign({}, DESIGN_DEFAULT, D.design || {});
     const fam = (f) => 'family=' + f.replace(/ /g, '+') + ':wght@400;700;900';
+    const CF = D.customFonts = D.customFonts || [];
+    const gNames = CF.filter((f) => f.google).map((f) => f.name);
     const l = document.createElement('link'); l.rel = 'stylesheet';
-    l.href = 'https://fonts.googleapis.com/css2?' + FONTS_DISPLAY.concat(FONTS_TEXT).map(fam).join('&') + '&display=swap'; document.head.append(l);
+    l.href = 'https://fonts.googleapis.com/css2?' + FONTS_DISPLAY.concat(FONTS_TEXT, gNames).map(fam).join('&') + '&display=swap'; document.head.append(l);
+    let ff = document.getElementById('cf-faces'); if (!ff) { ff = document.createElement('style'); ff.id = 'cf-faces'; document.head.append(ff); }
+    ff.textContent = CF.filter((f) => f.url).map((f) => `@font-face{font-family:'${f.name.replace(/'/g, '')}';src:url('${f.url}');font-display:swap}`).join('');
+    const dispList = CF.map((f) => f.name).concat(FONTS_DISPLAY), textList = CF.map((f) => f.name).concat(FONTS_TEXT);
+    const mine = (f) => CF.some((x) => x.name === f) ? '<i class="font-mine">Ma police</i>' : '';
     c.innerHTML = head('Charte graphique', 'Polices et couleurs du site entier. Pour une section précise, va dans Mise en page › Couleurs.', `<a class="btn" href="../index.html" target="_blank" rel="noopener">${I('eye')} Voir le site</a>`)
       + `<div class="cols"><div class="stack">
-        <section class="panel"><div class="panel-head"><div><h2>Police des titres</h2><p>Les gros titres, les prix, les boutons.</p></div></div><div class="panel-body font-grid" data-fd>${FONTS_DISPLAY.map((f) => `<button type="button" data-font="${esc(f)}" aria-pressed="${ds.display === f}" style="font-family:'${esc(f)}'">FUCSTYLE 69</button>`).join('')}</div></section>
-        <section class="panel"><div class="panel-head"><div><h2>Police des textes</h2><p>Les paragraphes, les menus, les fiches produit.</p></div></div><div class="panel-body font-grid font-grid--text" data-ft>${FONTS_TEXT.map((f) => `<button type="button" data-font="${esc(f)}" aria-pressed="${ds.text === f}" style="font-family:'${esc(f)}'"><b>${esc(f)}</b><span>Freestyle tous les dimanches.</span></button>`).join('')}</div></section>
+        <section class="panel"><div class="panel-head"><div><h2>Police des titres</h2><p>Les gros titres, les prix, les boutons.</p></div></div><div class="panel-body font-grid" data-fd>${dispList.map((f) => `<button type="button" data-font="${esc(f)}" aria-pressed="${ds.display === f}" style="font-family:'${esc(f)}'">FUCSTYLE 69${mine(f)}</button>`).join('')}</div></section>
+        <section class="panel"><div class="panel-head"><div><h2>Police des textes</h2><p>Les paragraphes, les menus, les fiches produit.</p></div></div><div class="panel-body font-grid font-grid--text" data-ft>${textList.map((f) => `<button type="button" data-font="${esc(f)}" aria-pressed="${ds.text === f}" style="font-family:'${esc(f)}'"><b>${esc(f)}</b><span>Freestyle tous les dimanches.</span>${mine(f)}</button>`).join('')}</div></section>
+        <section class="panel"><div class="panel-head"><div><h2>Mes polices</h2><p>Ajoute une police téléchargée sur Dafont, 1001 Fonts, Fontesk… (fichier .ttf, .otf, .woff ou .woff2), ou une police Google Fonts par son nom.</p></div></div>
+          <div class="panel-body stack">
+            <div class="font-drop"><label class="btn btn--primary" style="width:max-content">${I('upload')} Ajouter un fichier de police<input type="file" accept=".ttf,.otf,.woff,.woff2,font/*" hidden data-fontfile></label>
+              <span class="hint">Sur Dafont : bouton « Télécharger », ouvre le .zip, prends le fichier .ttf ou .otf. Vérifie que la police est gratuite pour un usage commercial.</span></div>
+            <div class="field"><label for="gf">…ou nom d’une police Google Fonts</label><div style="display:flex;gap:8px"><input id="gf" placeholder="ex. Rubik Glitch" data-gname><button class="btn" type="button" data-gadd>Ajouter</button></div></div>
+            ${CF.length ? `<div class="font-list">${CF.map((f, i) => `<div class="font-row"><span style="font-family:'${esc(f.name)}';font-size:22px">${esc(f.name)}</span><small>${f.google ? 'Google Fonts' : 'Fichier'}</small><button class="btn btn--icon btn--sm btn--danger" type="button" data-fdel="${i}" aria-label="Retirer">${I('trash')}</button></div>`).join('')}</div>` : ''}
+          </div></section>
         <section class="panel"><div class="panel-head"><h2>Couleurs</h2></div><div class="panel-body grid-3">
           <div class="field"><label for="cb">Rouge (accent)</label><input id="cb" type="color" data-col="blood" value="${esc(ds.blood)}"></div>
           <div class="field"><label for="cw">Fond béton</label><input id="cw" type="color" data-col="wall" value="${esc(ds.wall)}"></div>
@@ -1224,6 +1385,23 @@
     $$('[data-col]', c).forEach((i) => i.addEventListener('input', () => { ds[i.dataset.col] = i.value; paint(); }));
     $('[data-ts]', c).addEventListener('input', (e) => { ds.titleScale = +e.target.value; $('[data-tsv]', c).textContent = Math.round(ds.titleScale * 100) + ' %'; paint(); });
     $('[data-up]', c).addEventListener('change', (e) => { ds.upper = e.target.checked; paint(); });
+    $('[data-fontfile]', c).addEventListener('change', async (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      const ext = (f.name.match(/\.(ttf|otf|woff2?)$/i) || [])[1];
+      if (!ext) return toast('Choisis un fichier .ttf, .otf, .woff ou .woff2 (pas le .zip : ouvre-le d’abord).', true);
+      if (f.size > 3 * 1024 * 1024) return toast('Police trop lourde (3 Mo maximum).', true);
+      const name = f.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').replace(/\s+(regular|webfont)$/i, '').trim().slice(0, 40) || 'Ma police';
+      const dataUrl = await new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).replace(/^data:[^;]*;/, 'data:font/' + ext.toLowerCase() + ';')); fr.readAsDataURL(f); });
+      let url = dataUrl;
+      if (REMOTE) { const r = await S.api('upload', { method: 'POST', body: { name, dataUrl, kind: 'font' } }); if (r.ok && r.data && r.data.url) url = r.data.url; else if (r.status === 503) toast('Stockage Vercel Blob pas encore branché : la police est gardée dans le site en attendant.', true); }
+      CF.push({ name, url }); D.customFonts = CF; save('Police « ' + name + ' » ajoutée — choisis-la dans la liste'); route();
+    });
+    $('[data-gadd]', c).addEventListener('click', () => {
+      const n = $('[data-gname]', c).value.trim().replace(/\s+/g, ' ').replace(/(^|\s)\S/g, (x) => x.toUpperCase());
+      if (!n) return; if (dispList.includes(n)) return toast('Cette police est déjà dans la liste.', true);
+      CF.push({ name: n, google: true }); D.customFonts = CF; save('Police « ' + n + ' » ajoutée'); route();
+    });
+    $$('[data-fdel]', c).forEach((b) => b.addEventListener('click', () => { const f = CF.splice(+b.dataset.fdel, 1)[0]; D.customFonts = CF; if (f && D.design) { if (D.design.display === f.name) delete D.design.display; if (D.design.text === f.name) delete D.design.text; } save('Police retirée'); route(); }));
     $('[data-reset]', c).addEventListener('click', () => { delete D.design; save('Typos et couleurs d’origine remises'); route(); });
     $('[data-save]', c).addEventListener('click', () => { D.design = ds; save('Typos et couleurs appliquées au site'); });
     paint();
@@ -1463,7 +1641,7 @@
       $('[data-del]', c).addEventListener('click', async () => { if (await confirmBox('Supprimer ce message ?', 'Il sera effacé du tableau de bord.', 'Supprimer')) { D.messages = D.messages.filter((x) => x !== m); save('Message supprimé'); location.hash = '#/messages'; } });
       return;
     }
-    c.innerHTML = head('Messages', 'Reçus par le formulaire de contact du site (booking, collabs, commandes).')
+    c.innerHTML = head('Messages', 'Tous les messages du site arrivent ici : booking, collabs, questions sur une commande. Ton email n’est plus affiché sur le site, les visiteurs passent par le formulaire. Tu reçois une notification sur l’appli à chaque nouveau message.')
       + `<section class="panel">${D.messages.length ? D.messages.map((x) => `<a class="msg-item${x.read ? '' : ' unread'}" href="#/messages/${x.id}" style="display:block;text-decoration:none"><div style="display:flex;justify-content:space-between;gap:12px"><b>${esc(x.name || x.email)} — ${esc(x.subject || '')}</b><small style="color:var(--muted);white-space:nowrap">${fmtDT(x.date)}</small></div><p>${esc(x.message)}</p></a>`).join('')
         : '<div class="empty-state"><b>Aucun message pour l’instant</b>Les messages envoyés depuis la page Contact arrivent ici.</div>'}</section>`;
   };
@@ -1591,6 +1769,16 @@
   };
 
   /* ================= RÉGLAGES ================= */
+  /* charge le SDK PayPal avec la clé : PayPal répond une erreur si elle est fausse */
+  function testPaypal(id) {
+    return new Promise((res) => {
+      const sc = document.createElement('script'); let done = false;
+      const end = (v) => { if (done) return; done = true; sc.remove(); res(v); };
+      sc.src = 'https://www.paypal.com/sdk/js?client-id=' + encodeURIComponent(id) + '&currency=EUR&components=buttons';
+      sc.onload = () => end(!!window.paypal); sc.onerror = () => end(false);
+      setTimeout(() => end(null), 12000); document.head.append(sc);
+    });
+  }
   views.reglages = (c) => {
     const used = (() => { try { return (localStorage.getItem('fucstyle:data') || '').length; } catch (e) { return 0; } })();
     const pct = Math.min(100, used / (5 * 1024 * 1024) * 100);
@@ -1599,7 +1787,7 @@
       + `<div class="cols"><div class="stack">
         <section class="panel"><div class="panel-head"><h2>Mes infos</h2></div><div class="panel-body stack">
           <div class="grid-2"><div class="field"><label for="own">Prénom affiché</label><input id="own" data-own value="${esc(D.settings.owner || '')}"></div>
-          <div class="field"><label for="pmail">Email de contact du site</label><input id="pmail" type="email" data-pmail value="${esc(D.site.email || '')}"><span class="hint">Affiché sur le site, utilisé pour le formulaire de contact et les mentions légales.</span></div></div>
+          <div class="field"><label for="pmail">Email de contact du site</label><input id="pmail" type="email" data-pmail value="${esc(D.site.email || '')}"><span class="hint">N’est plus affiché sur le site (les visiteurs passent par le formulaire). Sert pour les mentions légales.</span></div></div>
           <div class="field"><label for="nmail">Email pour recevoir les alertes de commande</label><input id="nmail" type="email" data-nmail value="${esc(D.settings.alertEmail || D.site.email || '')}"></div>
           <button class="btn btn--primary" type="button" data-saveinfo style="width:max-content">Enregistrer mes infos</button></div></section>
         <section class="panel"><div class="panel-head"><h2>Mot de passe</h2></div><div class="panel-body stack">
@@ -1610,13 +1798,22 @@
           <button class="btn btn--primary" type="button" data-savepw style="width:max-content">Changer le mot de passe</button></div></section>
         <section class="panel"><div class="panel-head"><h2>Apparence du tableau de bord</h2></div><div class="panel-body">
           <div class="seg" role="group" aria-label="Thème"><button type="button" data-theme="light" aria-pressed="${theme === 'light'}">Clair</button><button type="button" data-theme="dark" aria-pressed="${theme === 'dark'}">Sombre</button><button type="button" data-theme="auto" aria-pressed="${theme === 'auto'}">Comme le téléphone</button></div></div></section>
-        <section class="panel"><div class="panel-head"><div><h2>Appli sur ton téléphone</h2><p>Le tableau de bord s’installe comme une appli, avec son icône.</p></div></div><div class="panel-body stack">
-          <ol style="margin:0;padding-left:18px;line-height:1.7"><li><b>iPhone :</b> ouvre cette page dans Safari › bouton Partager › « Sur l’écran d’accueil ».</li><li><b>Android :</b> ouvre-la dans Chrome › menu ⋮ › « Installer l’application ».</li></ol>
-          <button class="btn" type="button" data-notifon style="width:max-content">${I('bell')} Autoriser les notifications</button>
-          <span class="hint" data-notifst></span></div></section>
-        <section class="panel"><div class="panel-head"><div><h2>Paiement PayPal</h2><p>Moyen de paiement actuel : carte bancaire et PayPal, encaissés sur le compte PayPal de Jeff.</p></div>${(D.payment && D.payment.paypalClientId) ? pill('ok', 'Actif') : pill('low', 'Mode test')}</div><div class="panel-body stack">
-          <div class="field"><label for="ppid">Identifiant client PayPal (Client ID)</label><input id="ppid" data-ppid value="${esc((D.payment && D.payment.paypalClientId) || '')}" placeholder="Ex. AYx… (développeur PayPal › Mes applis › Live)"><span class="hint">Vide = mode test : le bouton s’affiche mais n’encaisse rien. Où le trouver : developer.paypal.com › Apps & Credentials › onglet Live › Create App › Client ID.</span></div>
-          <button class="btn btn--primary" type="button" data-saveppid style="width:max-content">Enregistrer PayPal</button></div></section>
+        <section class="panel"><div class="panel-head"><h2>Appli sur ton téléphone</h2></div><div class="panel-body">${appCard(false)}</div></section>
+        <section class="panel pp-panel"><div class="panel-head"><div><h2>Encaisser avec PayPal</h2><p>Les clients paient par carte bancaire ou PayPal, l’argent arrive sur ton compte PayPal.</p></div>${(D.payment && D.payment.paypalClientId) ? pill('ok', 'Branché') : pill('low', 'Pas encore branché')}</div><div class="panel-body">
+          ${(D.payment && D.payment.paypalClientId) ? `<div class="pp-done"><b>✓ PayPal est branché.</b> Les paiements du site arrivent sur ton compte PayPal.<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><a class="btn btn--sm" href="https://www.paypal.com/myaccount/summary" target="_blank" rel="noopener">${I('ext')} Voir mon argent sur PayPal</a><button class="btn btn--sm" type="button" data-ppredo>Changer de compte PayPal</button></div></div>` : ''}
+          <ol class="pp-steps"${(D.payment && D.payment.paypalClientId) ? ' hidden' : ''} data-ppsteps>
+            <li><div><b>Un compte PayPal Professionnel</b><span>Gratuit. Si tu as déjà un PayPal perso, PayPal te propose de le passer en Pro en 2 minutes.</span></div>
+              <div class="pp-act"><a class="btn btn--primary" href="https://www.paypal.com/fr/business" target="_blank" rel="noopener">${I('ext')} Créer / passer en compte Pro</a><a class="btn btn--sm btn--ghost" href="https://www.paypal.com/signin" target="_blank" rel="noopener">J’en ai déjà un</a></div></li>
+            <li><div><b>Ouvre ta page « clé du site »</b><span>Connecte-toi avec ton email et mot de passe PayPal habituels. Vérifie que l’interrupteur en haut est sur <b>Live</b> (pas Sandbox).</span></div>
+              <div class="pp-act"><a class="btn btn--primary" href="https://developer.paypal.com/dashboard/applications/live" target="_blank" rel="noopener">${I('ext')} Ouvrir ma page PayPal</a></div></li>
+            <li><div><b>Crée la clé « Fucstyle »</b><span>Appuie sur <b>Create App</b>, tape <b>Fucstyle</b> comme nom, choisis <b>Merchant</b>, puis <b>Create App</b>. S’il y a déjà une appli « Default Application », clique simplement dessus.</span></div></li>
+            <li><div><b>Copie le « Client ID »</b><span>C’est la longue suite de lettres sous <b>Client ID</b> (commence souvent par A). Appuie sur l’icône copier à côté. Ne copie <b>pas</b> le « Secret ».</span></div></li>
+            <li><div><b>Colle-la ici et vérifie</b><span>On teste la clé avec PayPal avant de l’activer sur le site.</span></div>
+              <div class="pp-paste"><input id="ppid" data-ppid value="${esc((D.payment && D.payment.paypalClientId) || '')}" placeholder="Colle ton Client ID ici" autocomplete="off" spellcheck="false"><button class="btn" type="button" data-pppaste>${I('copy')} Coller</button></div>
+              <div class="pp-act"><button class="btn btn--primary" type="button" data-saveppid>Vérifier et brancher PayPal</button></div><span class="hint" data-ppst></span></li>
+          </ol>
+          <p class="hint" style="margin-top:12px">Tant que PayPal n’est pas branché, le bouton de paiement du site est en <b>mode test</b> : il s’affiche mais n’encaisse rien. Frais PayPal : environ 2,9 % + 0,35 € par vente en France, vérifie la grille à jour sur paypal.com.</p>
+        </div></section>
         <section class="panel"><div class="panel-head"><div><h2>Passer à Stripe un jour ?</h2><p>Guide pas à pas, si tu veux changer de moyen de paiement.</p></div></div><div class="panel-body">
           <details class="guide"><summary>Voir les étapes</summary><ol>
             <li><b>Crée ton compte</b> sur <a href="https://dashboard.stripe.com/register" target="_blank" rel="noopener">stripe.com</a> avec ton email pro.</li>
@@ -1660,26 +1857,21 @@
       D.settings.pin = n; save('Mot de passe changé'); $$('[data-opw],[data-npw],[data-cpw]', c).forEach((i) => (i.value = ''));
     });
     $$('[data-theme]', c).forEach((b) => b.addEventListener('click', () => { D.settings.theme = b.dataset.theme; applyTheme(); save('Apparence enregistrée'); $$('[data-theme]', c).forEach((x) => x.setAttribute('aria-pressed', x === b)); }));
-    const nst = $('[data-notifst]', c);
-    const showN = () => { nst.textContent = !('Notification' in window) ? 'Ce navigateur ne gère pas les notifications. Installe d’abord l’appli.' : Notification.permission === 'granted' ? 'Notifications autorisées sur cet appareil.' : Notification.permission === 'denied' ? 'Notifications bloquées : réactive-les dans les réglages du téléphone.' : ''; };
-    showN();
-    $('[data-notifon]', c).addEventListener('click', async () => {
-      if (!('Notification' in window)) return showN();
-      const r = await Notification.requestPermission(); showN();
-      if (r !== 'granted' || !navigator.serviceWorker) return;
-      const reg = await navigator.serviceWorker.ready;
-      if (REMOTE && reg.pushManager) {
-        try {
-          const k = await S.api('admin?vapid=1');
-          const key = Uint8Array.from(atob(k.data.publicKey.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - k.data.publicKey.length % 4) % 4)), (ch) => ch.charCodeAt(0));
-          const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }));
-          await S.api('admin', { method: 'POST', body: { action: 'push', subscription: sub.toJSON() } });
-          nst.textContent = 'Notifications activées : tu seras prévenu à chaque commande et message, même appli fermée.';
-        } catch (e) { nst.textContent = 'Notifications locales activées. Pour les recevoir appli fermée, installe d’abord l’appli sur l’écran d’accueil.'; }
-      }
-      reg.showNotification('Fucstyle Admin', { body: 'Les notifications sont activées.', icon: 'icon-192.png' });
+    bindAppCard(c);
+    const ppst = $('[data-ppst]', c);
+    const redo = $('[data-ppredo]', c); if (redo) redo.addEventListener('click', () => { $('[data-ppsteps]', c).hidden = false; redo.closest('.pp-done').hidden = true; });
+    $('[data-pppaste]', c).addEventListener('click', async () => { try { $('[data-ppid]', c).value = (await navigator.clipboard.readText()).trim(); } catch (e) { toast('Appui long dans la case puis « Coller ».', true); $('[data-ppid]', c).focus(); } });
+    $('[data-saveppid]', c).addEventListener('click', async (e) => {
+      const v = $('[data-ppid]', c).value.replace(/\s+/g, '');
+      if (!v) { D.payment = Object.assign({}, D.payment, { paypalClientId: '' }); save('PayPal repassé en mode test'); return route(); }
+      if (/^E[A-Za-z0-9_-]{40,}$/.test(v) && v.length > 70) return (ppst.textContent = 'Ça ressemble au « Secret ». Copie plutôt le « Client ID », juste au-dessus.');
+      if (!/^[A-Za-z0-9_-]{20,}$/.test(v)) return (ppst.textContent = 'Ce n’est pas un Client ID PayPal. Il fait environ 80 caractères, sans espace.');
+      e.target.disabled = true; ppst.textContent = 'Vérification avec PayPal…';
+      const ok = await testPaypal(v);
+      e.target.disabled = false;
+      if (ok === false) { ppst.innerHTML = 'PayPal refuse cette clé. Vérifie que tu es bien sur « Live » (pas Sandbox) et que tu as copié tout le Client ID. <button class="btn btn--sm btn--ghost" type="button" data-ppforce>Enregistrer quand même</button>'; $('[data-ppforce]', ppst).addEventListener('click', () => { D.payment = Object.assign({}, D.payment, { paypalClientId: v }); save('PayPal enregistré — fais un achat test pour vérifier'); route(); }); return; }
+      D.payment = Object.assign({}, D.payment, { paypalClientId: v }); save(ok ? 'PayPal branché : les paiements arrivent sur ton compte' : 'PayPal enregistré'); route();
     });
-    $('[data-saveppid]', c).addEventListener('click', () => { const v = $('[data-ppid]', c).value.trim(); if (v && !/^[A-Za-z0-9_-]{20,}$/.test(v)) return toast('Cet identifiant ne ressemble pas à un Client ID PayPal.', true); D.payment = Object.assign({}, D.payment, { paypalClientId: v }); save(v ? 'PayPal branché : paiements réels activés' : 'PayPal repassé en mode test'); });
 
     $('[data-export]', c).addEventListener('click', () => download('fucstyle-sauvegarde-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify(D, null, 2), 'application/json'));
     $('[data-import]', c).addEventListener('change', (e) => {

@@ -7,7 +7,8 @@ export default async function handler(req, res) {
   if (!(await isAdmin(req))) return send(res, 401, { error: 'auth' });
   if (!process.env.BLOB_READ_WRITE_TOKEN) return send(res, 503, { error: 'noblob' });
   const b = await readBody(req);
-  const m = String(b.dataUrl || '').match(/^data:(image\/(png|jpeg|webp|gif));base64,(.+)$/);
+  let m = String(b.dataUrl || '').match(/^data:(image\/(png|jpeg|webp|gif));base64,(.+)$/);
+  if (!m && b.kind === 'font') m = String(b.dataUrl || '').match(/^data:(font\/(ttf|otf|woff2?));base64,(.+)$/);
   if (!m) return send(res, 400, { error: 'image' });
   const buf = Buffer.from(m[3], 'base64');
   if (buf.length > 6 * 1024 * 1024) return send(res, 413, { error: 'size' });
