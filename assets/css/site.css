@@ -802,3 +802,4 @@ img.sticker { border-radius: 50%; background: var(--white); border: 4px solid va
 [style*="--title-color"] .display, [style*="--title-color"] h1, [style*="--title-color"] h2, [style*="--title-color"] h3 { color: var(--title-color); }
 .section.pad-compact, .page-head.pad-compact { padding-top: clamp(32px, 5vw, 56px); padding-bottom: clamp(32px, 5vw, 56px); }
 .section.pad-large, .page-head.pad-large { padding-top: clamp(96px, 14vw, 180px); padding-bottom: clamp(96px, 14vw, 180px); }
+html.is-loading main { opacity: 0; } main { transition: opacity .2s; }

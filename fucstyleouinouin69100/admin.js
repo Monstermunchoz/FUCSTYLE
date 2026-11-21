@@ -52,7 +52,62 @@
   const clone = (o) => JSON.parse(JSON.stringify(o));
   const countable = (o) => o.status !== 'annulee' && o.status !== 'remboursee';
 
+  /* ---------- synchro avec la base en ligne ---------- */
+  let REMOTE = false, syncT = null, snap = {};
+  const LISTS = { orders: 'id', messages: 'id', subscribers: 'email' };
+  let stockBase = null;
+  const stockMap = () => { const m = {}; D.products.forEach((p) => { if (p.variants && p.variants.length) p.variants.forEach((v) => (m[p.id + '|' + v.key] = +v.stock)); else m[p.id] = +p.stock; }); return m; };
+  const applyStock = (m) => { D.products.forEach((p) => { if (p.variants && p.variants.length) p.variants.forEach((v) => { if ((p.id + '|' + v.key) in m) v.stock = m[p.id + '|' + v.key]; }); else if (p.id in m) p.stock = m[p.id]; }); };
+  /* stock à jour depuis la base, sans perdre une modif de Jeff pas encore envoyée */
+  const pullStock = (site) => {
+    if (!site || !site.products) return;
+    const sm = {}; site.products.forEach((p) => { if (p.variants && p.variants.length) p.variants.forEach((v) => (sm[p.id + '|' + v.key] = +v.stock)); else sm[p.id] = +p.stock; });
+    const mine = stockMap(), out = {};
+    Object.keys(sm).forEach((k) => { const pending = stockBase && k in stockBase && k in mine ? mine[k] - stockBase[k] : 0; out[k] = Math.max(0, sm[k] + pending); });
+    applyStock(out); const nb = Object.assign({}, sm); stockBase = nb;
+  };
+  const takeSnap = () => { Object.keys(LISTS).forEach((l) => { snap[l] = {}; (D[l] || []).filter((x) => !x.demo).forEach((x) => (snap[l][x[LISTS[l]]] = JSON.stringify(x))); }); };
+  async function pushRemote() {
+    const body = Object.assign({}, D, { stockBase }); Object.keys(LISTS).forEach((k) => delete body[k]);
+    const r = await S.api('site', { method: 'PUT', body });
+    if (r.ok && r.data && r.data.stock) { applyStock(r.data.stock); stockBase = r.data.stock; S.save(D); }
+    if (r.status === 401) { toast('Ta session a expiré, reconnecte-toi.', true); return logout(); }
+    if (!r.ok) { toast('Enregistrement en ligne impossible pour l’instant. Réessaie dans un instant.', true); return; }
+    for (const [l, key] of Object.entries(LISTS)) {
+      const cur = (D[l] || []).filter((x) => !x.demo), seen = new Set();
+      const upsert = cur.filter((x) => { seen.add(x[key]); return snap[l][x[key]] !== JSON.stringify(x); });
+      const remove = Object.keys(snap[l]).filter((k) => !seen.has(k));
+      if (upsert.length || remove.length) await S.api('admin', { method: 'POST', body: { action: 'patch', list: l, upsert, remove } });
+    }
+    takeSnap();
+    const st = $('[data-sync]'); if (st) { st.textContent = 'Enregistré en ligne'; st.dataset.state = 'ok'; }
+  }
+  function queueSync() {
+    if (!REMOTE) return;
+    const st = $('[data-sync]'); if (st) { st.textContent = 'Enregistrement…'; st.dataset.state = 'busy'; }
+    clearTimeout(syncT); syncT = setTimeout(pushRemote, 700);
+  }
+  async function loadRemote() {
+    const r = await S.api('admin');
+    if (r.status === 401) return false;
+    if (!r.ok) return false;
+    const x = r.data;
+    if (!x.site) {
+      // première connexion : on envoie le contenu actuel dans la base
+      D.orders = (D.orders || []).filter((o) => !o.demo);
+      takeSnap(); snap = { orders: {}, messages: {}, subscribers: {} }; stockBase = null;
+      REMOTE = true; await pushRemote(); return true;
+    }
+    D = Object.assign(clone(window.FUC_DEFAULTS), x.site, { orders: x.orders || [], messages: x.messages || [], subscribers: x.subscribers || [] });
+    D.version = window.FUC_DEFAULTS.version;
+    D.settings = Object.assign({ owner: 'Jeff' }, x.site.settings || {});
+    D.messages = D.messages || [];
+    S.save(D); REMOTE = true; takeSnap(); stockBase = stockMap(); return true;
+  }
+  function logout() { try { sessionStorage.removeItem('fucstyle:admin'); sessionStorage.removeItem('fucstyle:token'); } catch (e) {} REMOTE = false; loginView(); }
+
   function save(msg) {
+    queueSync();
     const ok = S.save(D);
     if (!ok) toast('Sauvegarde impossible : la mémoire du navigateur est pleine. Utilise des liens d’images plutôt que des fichiers, ou supprime des photos.', true);
     else if (msg) toast(msg);
@@ -88,7 +143,15 @@
     });
   }
   /* compresse une image choisie en JPEG/PNG léger (data URL) */
-  function readImage(file, max) {
+  async function readImage(file, max) {
+    const dataUrl = await readImageLocal(file, max);
+    if (!REMOTE) return dataUrl;
+    const r = await S.api('upload', { method: 'POST', body: { name: file.name.replace(/\.[^.]+$/, ''), dataUrl } });
+    if (r.ok && r.data && r.data.url) return r.data.url;
+    if (r.status === 503) toast('Stockage photos pas encore branché (Vercel Blob) : la photo est gardée dans le site en attendant.', true);
+    return dataUrl;
+  }
+  function readImageLocal(file, max) {
     max = max || 1400;
     return new Promise((res, rej) => {
       if (!/^image\//.test(file.type)) return rej(new Error('Ce fichier n’est pas une image.'));
@@ -134,6 +197,16 @@
 
   /* ---------- connexion ---------- */
   function authed() { try { return sessionStorage.getItem('fucstyle:admin') === '1'; } catch (e) { return false; } }
+  async function tryLogin(pw) {
+    if (location.protocol !== 'file:') {
+      try {
+        const r = await S.api('admin', { method: 'POST', body: { action: 'login', password: pw } });
+        if (r.ok && r.data && r.data.token) { sessionStorage.setItem('fucstyle:token', r.data.token); return (await loadRemote()) ? 'remote' : 'fail'; }
+        if (r.status === 401) return 'bad';
+      } catch (e) { /* pas d'API : mode local */ }
+    }
+    return pw === String(D.settings.pin) ? 'local' : 'bad';
+  }
   function loginView() {
     root.innerHTML = `<div class="login"><form class="login-box" autocomplete="off">
       <img src="${esc(D.site.logo)}" alt="Fucstyle">
@@ -143,8 +216,13 @@
       </form></div>`;
     $('form', root).addEventListener('submit', (e) => {
       e.preventDefault();
-      if ($('#pin').value === String(D.settings.pin)) { try { sessionStorage.setItem('fucstyle:admin', '1'); } catch (er) {} shell(); route(); }
-      else { $('.login-err').textContent = 'Code incorrect. Réessaie.'; $('#pin').select(); }
+      const btn = $('button', root); btn.disabled = true; btn.textContent = 'Connexion…';
+      tryLogin($('#pin').value).then((res) => {
+        btn.disabled = false; btn.textContent = 'Entrer';
+        if (res === 'remote' || res === 'local') { try { sessionStorage.setItem('fucstyle:admin', '1'); } catch (er) {} shell(); route(); }
+        else if (res === 'fail') $('.login-err').textContent = 'Connexion à la base impossible. Réessaie dans un instant.';
+        else { $('.login-err').textContent = 'Mot de passe incorrect. Réessaie.'; $('#pin').select(); }
+      });
     });
   }
 
@@ -166,10 +244,10 @@
       <div class="main">
         <div class="topbar"><button class="btn btn--icon btn--ghost burger" type="button" data-burger aria-label="Menu">${I('menu')}</button>
           <form class="search" data-search role="search">${I('search')}<label class="sr-only" for="q">Rechercher</label><input id="q" placeholder="Rechercher un produit, une commande, un article…"></form>
-          <div class="who"><span>${esc(D.settings.owner || 'Jeff')}</span><div class="avatar">${esc((D.settings.owner || 'J')[0])}</div></div></div>
+          <span class="sync" data-sync data-state="${REMOTE ? 'ok' : 'local'}">${REMOTE ? 'Enregistré en ligne' : 'Mode local'}</span><div class="who"><span>${esc(D.settings.owner || 'Jeff')}</span><div class="avatar">${esc((D.settings.owner || 'J')[0])}</div></div></div>
         <div class="content" id="content"></div>
       </div></div>`;
-    $('[data-logout]').addEventListener('click', () => { try { sessionStorage.removeItem('fucstyle:admin'); } catch (e) {} loginView(); });
+    $('[data-logout]').addEventListener('click', logout);
     const side = $('#side'), scrim = $('[data-scrim]');
     $('[data-burger]').addEventListener('click', () => { side.classList.add('open'); scrim.classList.add('open'); });
     scrim.addEventListener('click', () => { side.classList.remove('open'); scrim.classList.remove('open'); });
@@ -194,6 +272,10 @@
     const name = parts[0] || 'apercu';
     const v = views[name] || views.apercu;
     drawNav();
+    if (REMOTE && ['apercu', 'commandes', 'clients', 'messages', 'notifications'].includes(name) && !dirty && Date.now() - (route.last || 0) > 4000) {
+      route.last = Date.now();
+      S.api('admin').then((r) => { if (r.ok && r.data) { ['orders', 'messages', 'subscribers'].forEach((l) => (D[l] = r.data[l] || [])); pullStock(r.data.site); takeSnap(); lastCount = D.orders.length; drawNav(); if (current === name) route(); } });
+    }
     const old = $('#content'); const c = old.cloneNode(false); old.replaceWith(c); window.scrollTo(0, 0);
     current = name; dirty = false;
     v(c, parts.slice(1).map(decodeURIComponent));
@@ -1500,8 +1582,16 @@
       D.settings.owner = $('[data-own]', c).value.trim() || 'Jeff'; if (pm) D.site.email = pm; D.settings.alertEmail = nm;
       save('Infos enregistrées'); shell(); route();
     });
-    $('[data-savepw]', c).addEventListener('click', () => {
+    $('[data-savepw]', c).addEventListener('click', async () => {
       const o = $('[data-opw]', c).value, n = $('[data-npw]', c).value, k = $('[data-cpw]', c).value;
+      if (REMOTE) {
+        if (n.length < 6) return toast('Le nouveau mot de passe doit faire au moins 6 caractères.', true);
+        if (n !== k) return toast('Les deux nouveaux mots de passe ne sont pas identiques.', true);
+        const r = await S.api('admin', { method: 'POST', body: { action: 'password', current: o, next: n } });
+        if (r.status === 403) return toast('Le mot de passe actuel est incorrect.', true);
+        if (!r.ok) return toast('Changement impossible pour l’instant, réessaie.', true);
+        sessionStorage.setItem('fucstyle:token', r.data.token); $$('[data-opw],[data-npw],[data-cpw]', c).forEach((i) => (i.value = '')); return toast('Mot de passe changé');
+      }
       if (o !== String(D.settings.pin)) return toast('Le mot de passe actuel est incorrect.', true);
       if (n.length < 6) return toast('Le nouveau mot de passe doit faire au moins 6 caractères.', true);
       if (n !== k) return toast('Les deux nouveaux mots de passe ne sont pas identiques.', true);
@@ -1511,7 +1601,22 @@
     const nst = $('[data-notifst]', c);
     const showN = () => { nst.textContent = !('Notification' in window) ? 'Ce navigateur ne gère pas les notifications. Installe d’abord l’appli.' : Notification.permission === 'granted' ? 'Notifications autorisées sur cet appareil.' : Notification.permission === 'denied' ? 'Notifications bloquées : réactive-les dans les réglages du téléphone.' : ''; };
     showN();
-    $('[data-notifon]', c).addEventListener('click', async () => { if (!('Notification' in window)) return showN(); const r = await Notification.requestPermission(); showN(); if (r === 'granted' && navigator.serviceWorker) { const reg = await navigator.serviceWorker.ready; reg.showNotification('Fucstyle Admin', { body: 'Les notifications sont activées.', icon: 'icon-192.png' }); } });
+    $('[data-notifon]', c).addEventListener('click', async () => {
+      if (!('Notification' in window)) return showN();
+      const r = await Notification.requestPermission(); showN();
+      if (r !== 'granted' || !navigator.serviceWorker) return;
+      const reg = await navigator.serviceWorker.ready;
+      if (REMOTE && reg.pushManager) {
+        try {
+          const k = await S.api('admin?vapid=1');
+          const key = Uint8Array.from(atob(k.data.publicKey.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - k.data.publicKey.length % 4) % 4)), (ch) => ch.charCodeAt(0));
+          const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }));
+          await S.api('admin', { method: 'POST', body: { action: 'push', subscription: sub.toJSON() } });
+          nst.textContent = 'Notifications activées : tu seras prévenu à chaque commande et message, même appli fermée.';
+        } catch (e) { nst.textContent = 'Notifications locales activées. Pour les recevoir appli fermée, installe d’abord l’appli sur l’écran d’accueil.'; }
+      }
+      reg.showNotification('Fucstyle Admin', { body: 'Les notifications sont activées.', icon: 'icon-192.png' });
+    });
     $('[data-saveppid]', c).addEventListener('click', () => { const v = $('[data-ppid]', c).value.trim(); if (v && !/^[A-Za-z0-9_-]{20,}$/.test(v)) return toast('Cet identifiant ne ressemble pas à un Client ID PayPal.', true); D.payment = Object.assign({}, D.payment, { paypalClientId: v }); save(v ? 'PayPal branché : paiements réels activés' : 'PayPal repassé en mode test'); });
 
     $('[data-export]', c).addEventListener('click', () => download('fucstyle-sauvegarde-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify(D, null, 2), 'application/json'));
@@ -1527,8 +1632,17 @@
   /* ---------- appli : service worker + alerte nouvelle commande ---------- */
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
   let lastCount = D.orders.length;
-  setInterval(() => {
-    const fresh = S.load(); if (fresh.orders.length <= lastCount) return;
+  setInterval(async () => {
+    if (!authed()) return;
+    let fresh;
+    if (REMOTE) {
+      if (dirty || syncT && $('[data-sync]') && $('[data-sync]').dataset.state === 'busy') return;
+      const r = await S.api('admin'); if (!r.ok || !r.data) return;
+      ['orders', 'messages', 'subscribers'].forEach((l) => (D[l] = r.data[l] || []));
+      pullStock(r.data.site);
+      takeSnap(); fresh = D;
+    } else fresh = S.load();
+    if (fresh.orders.length <= lastCount) { lastCount = fresh.orders.length; return; }
     const n = fresh.orders.length - lastCount; lastCount = fresh.orders.length; D.orders = fresh.orders; drawNav && $('[data-nav]') && drawNav();
     const o = fresh.orders[0]; toast(n > 1 ? n + ' nouvelles commandes' : 'Nouvelle commande ' + o.id + ' — ' + money(o.total));
     if ('Notification' in window && Notification.permission === 'granted' && navigator.serviceWorker) navigator.serviceWorker.ready.then((r) => r.showNotification('Nouvelle commande ' + o.id, { body: o.customer.first + ' — ' + money(o.total), icon: 'icon-192.png', data: { url: './#/commandes/' + o.id } }));
@@ -1544,7 +1658,11 @@
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 
   /* ---------- démarrage ---------- */
-  if (authed()) { shell(); route(); } else loginView();
+  (async () => {
+    let tok = null; try { tok = sessionStorage.getItem('fucstyle:token'); } catch (e) {}
+    if (authed() && tok) { root.innerHTML = '<div class="login"><p>Chargement…</p></div>'; if (await loadRemote().catch(() => false)) { lastCount = D.orders.length; shell(); route(); } else logout(); }
+    else if (authed()) { shell(); route(); } else loginView();
+  })();
   new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach((n) => { if (n.nodeType === 1) S.typo(n); }))).observe(document.body, { childList: true, subtree: true });
   S.typo(document.body);
 })();

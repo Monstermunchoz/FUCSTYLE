@@ -1,11 +1,11 @@
 /* FUCSTYLE — rendu du site public */
 (function () {
   const S = window.Store;
-  const D = S.load();
+  let D = S.load();
   const $ = (s, el) => (el || document).querySelector(s);
   const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
   const esc = S.esc;
-  const site = D.site;
+  let site = D.site;
 
   const ICON = {
     instagram: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2c3.2 0 3.6 0 4.8.1 3.3.1 4.8 1.7 4.9 4.9.1 1.3.1 1.6.1 4.8s0 3.6-.1 4.8c-.1 3.2-1.7 4.8-4.9 4.9-1.3.1-1.6.1-4.8.1s-3.6 0-4.8-.1c-3.3-.1-4.8-1.7-4.9-4.9C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.8C2.4 3.9 3.9 2.4 7.2 2.3 8.4 2.2 8.8 2.2 12 2.2zM12 0C8.7 0 8.3 0 7.1.1 2.7.3.3 2.7.1 7.1 0 8.3 0 8.7 0 12s0 3.7.1 4.9c.2 4.4 2.6 6.8 7 7 1.2.1 1.6.1 4.9.1s3.7 0 4.9-.1c4.4-.2 6.8-2.6 7-7 .1-1.2.1-1.6.1-4.9s0-3.7-.1-4.9c-.2-4.4-2.6-6.8-7-7C15.7 0 15.3 0 12 0zm0 5.8a6.2 6.2 0 100 12.4 6.2 6.2 0 000-12.4zM12 16a4 4 0 110-8 4 4 0 010 8zm6.4-11.8a1.4 1.4 0 100 2.9 1.4 1.4 0 000-2.9z"/></svg>',
@@ -70,8 +70,8 @@
       e.preventDefault();
       const mail = $('#news-mail', footer).value.trim().toLowerCase(), out = $('[data-news-msg]', footer);
       if (!/^\S+@\S+\.\S+$/.test(mail)) { out.innerHTML = '<p class="news-ok">Entre un email valide.</p>'; return; }
-      D.subscribers = D.subscribers || [];
-      if (!D.subscribers.some((s) => s.email === mail)) { D.subscribers.unshift({ email: mail, date: new Date().toISOString() }); S.save(D); }
+      if (S.remote) S.remoteContact({ type: 'subscribe', email: mail });
+      else { D.subscribers = D.subscribers || []; if (!D.subscribers.some((s) => s.email === mail)) { D.subscribers.unshift({ email: mail, date: new Date().toISOString() }); S.save(D); } }
       out.innerHTML = '<p class="news-ok">Bienvenue dans la team 🩸 Tu seras prévenu en premier.</p>'; e.target.reset();
     });
 
@@ -273,6 +273,10 @@
       const msg = $('[data-msg]', root);
       if (!/^\S+@\S+\.\S+$/.test(fd.email || '') || !(fd.message || '').trim()) {
         msg.innerHTML = '<p class="form-msg">Ajoute ton email et ton message pour envoyer.</p>'; return;
+      }
+      if (S.remote) {
+        S.remoteContact({ type: 'message', ...fd }).then((ok) => { msg.innerHTML = ok ? '<p class="form-msg">Message envoyé. On te répond vite.</p>' : '<p class="form-msg">L’envoi a échoué. Écris directement à ' + esc(site.email) + '.</p>'; if (ok) f.reset(); });
+        return;
       }
       D.messages = D.messages || [];
       D.messages.unshift({ id: S.uid('msg'), date: new Date().toISOString(), read: false, ...fd });
@@ -548,7 +552,17 @@
         $('[data-topay]').hidden = true; $('[data-paynote]').hidden = true; $('[data-paybox]').hidden = false;
         $('[data-back]').onclick = () => { $$('input,select', form).forEach((i) => (i.disabled = false)); $('[data-topay]').hidden = false; $('[data-paynote]').hidden = false; $('[data-paybox]').hidden = true; $('[data-paypal]').innerHTML = ''; };
         const total = () => { const l = S.cartLines(D); const sub = l.reduce((a, x) => a + x.lineTotal, 0); const disc = promo ? S.codeDiscount(D, promo, l) : 0; return +(sub - disc + S.shippingFor(D, fd.country, sub - disc).price).toFixed(2); };
-        const finish = (payment, ref) => {
+        const finish = async (payment, ref) => {
+          if (S.remote) {
+            const lines = S.cartLines(D);
+            try {
+              const order = await S.remoteOrder({ customer: fd, lines: lines.map((l) => ({ productId: l.productId, variantKey: l.variantKey, qty: l.qty })), code: promo ? promo.code : '', payment, paypalId: ref || '', paidTotal: total() });
+              S.setCart([]); thanks(order);
+            } catch (err) {
+              $('[data-paybox]').innerHTML = `<p class="form-msg">Ton paiement est bien passé (référence PayPal ${esc(ref || '')}), mais la commande n’a pas pu être enregistrée. Écris-nous à ${esc(site.email)} avec cette référence, on s’en occupe tout de suite.</p>`;
+            }
+            return;
+          }
           const order = S.placeOrder(D, fd, S.cartLines(D), promo);
           order.payment = payment; order.paypalId = ref || ''; S.save(D);
           thanks(order);
@@ -634,7 +648,6 @@
     if (ds.titleScale && ds.titleScale !== 1) r.setProperty('--title-scale', ds.titleScale);
     if (ds.upper === false) document.documentElement.classList.add('no-upper');
   }
-  applyDesign();
 
   /* ---------- Blocs ajoutés depuis le tableau de bord ---------- */
   const ytIdOf = (u) => { const m = String(u || '').match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/); return m ? m[1] : (/^[\w-]{11}$/.test(u || '') ? u : ''); };
@@ -718,12 +731,25 @@
     });
   }
 
-  document.title = document.title || site.seoTitle;
-  renderChrome();
-  if (pages[page]) pages[page]();
-  applyLayout(); frame(document.body);
-  // un sticker 69💯 le🩸 sur les en-têtes de pages
-  $$('.page-head .wrap').forEach((w) => { const im = document.createElement('img'); im.className = 'sticker sticker--head'; im.setAttribute('data-mark', ''); im.alt = ''; im.setAttribute('aria-hidden', 'true'); w.append(im); });
-  S.typo(document.body); marks(); dropify(document.body);
-  new MutationObserver((ms) => { ms.forEach((m) => m.addedNodes.forEach((n) => { if (n.nodeType === 1) { S.typo(n); dropify(n); frame(n); if (n.matches && (n.matches('img[data-mark]') || n.querySelector('img[data-mark]'))) marks(); } else if (n.nodeType === 3 && n.nodeValue.includes('🩸') && n.parentNode) dropify(n.parentNode); })); }).observe(document.body, { childList: true, subtree: true });
+  function boot() {
+    applyDesign();
+    document.title = document.title || site.seoTitle;
+    renderChrome();
+    if (pages[page]) pages[page]();
+    applyLayout(); frame(document.body);
+    // un sticker 69💯 le🩸 sur les en-têtes de pages
+    $$('.page-head .wrap').forEach((w) => { const im = document.createElement('img'); im.className = 'sticker sticker--head'; im.setAttribute('data-mark', ''); im.alt = ''; im.setAttribute('aria-hidden', 'true'); w.append(im); });
+    S.typo(document.body); marks(); dropify(document.body);
+    new MutationObserver((ms) => { ms.forEach((m) => m.addedNodes.forEach((n) => { if (n.nodeType === 1) { S.typo(n); dropify(n); frame(n); if (n.matches && (n.matches('img[data-mark]') || n.querySelector('img[data-mark]'))) marks(); } else if (n.nodeType === 3 && n.nodeValue.includes('🩸') && n.parentNode) dropify(n.parentNode); })); }).observe(document.body, { childList: true, subtree: true });
+  }
+  /* Lit le contenu à jour dans la base en ligne, puis affiche la page.
+     Sans réponse sous 3 s, on affiche la dernière version connue. */
+  let booted = false;
+  const go = () => { if (booted) return; booted = true; document.documentElement.classList.remove('is-loading'); boot(); };
+  if (location.protocol === 'file:' || window.__FUC_PREVIEW) go();
+  else {
+    document.documentElement.classList.add('is-loading');
+    setTimeout(go, 3000);
+    S.pull().then((d) => { if (d && !booted) { D = d; site = D.site; } go(); });
+  }
 })();

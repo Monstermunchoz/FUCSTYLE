@@ -245,5 +245,42 @@
     });
   };
 
+  /* ---------- Base de données en ligne (Vercel : Upstash Redis + Blob) ----------
+     Si l'API répond, le site lit et écrit dans la base. Sinon il reste en mode local. */
+  Store.remote = false;
+  Store.base = (document.currentScript && document.currentScript.src) ? new URL('../../', document.currentScript.src).href : '/';
+  Store.api = async function (path, opts) {
+    opts = opts || {};
+    const headers = { 'Content-Type': 'application/json' };
+    try { const t = sessionStorage.getItem('fucstyle:token'); if (t) headers['x-admin-token'] = t; } catch (e) {}
+    const r = await fetch(Store.base + 'api/' + path, { method: opts.method || 'GET', headers, body: opts.body ? JSON.stringify(opts.body) : undefined, cache: 'no-store' });
+    let data = null; try { data = await r.json(); } catch (e) {}
+    return { ok: r.ok, status: r.status, data };
+  };
+  /* contenu public du site depuis la base */
+  Store.pull = async function () {
+    if (window.__FUC_PREVIEW || location.protocol === 'file:') return null;
+    try {
+      const r = await Store.api('site');
+      if (r.status === 503 || r.status === 404 && !r.data) return null;
+      Store.remote = r.status === 200 || r.status === 404;
+      if (r.status !== 200) return null;
+      const d = Object.assign(JSON.parse(JSON.stringify(window.FUC_DEFAULTS)), r.data, { orders: [], messages: [], subscribers: [] });
+      d.version = window.FUC_DEFAULTS.version;
+      try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {}
+      return d;
+    } catch (e) { return null; }
+  };
+  Store.remoteOrder = async function (payload) {
+    const r = await Store.api('order', { method: 'POST', body: payload });
+    if (!r.ok) throw Object.assign(new Error((r.data && r.data.error) || 'order'), { info: r.data });
+    return r.data.order;
+  };
+  Store.remoteContact = async function (payload) {
+    if (!Store.remote) return false;
+    const r = await Store.api('contact', { method: 'POST', body: payload });
+    return r.ok;
+  };
+
   window.Store = Store;
 })();
