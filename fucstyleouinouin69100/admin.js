@@ -28,6 +28,7 @@
     search: 'M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-4-4',
     trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
     copy: 'M9 9h11v11H9zM5 15H4V4h11v1',
+    phone: 'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2',
     left: 'M15 18l-6-6 6-6', right: 'M9 18l6-6-6-6',
     star: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',
     upload: 'M12 16V4M7 9l5-5 5 5M4 16v4h16v-4',
@@ -308,7 +309,7 @@
   /* ---------- squelette ---------- */
   const NAV = [
     ['Pilotage', [['#/', 'Vue d’ensemble', 'home']]],
-    ['Boutique', [['#/produits', 'Produits', 'box'], ['#/stock', 'Stock', 'layers'], ['#/commandes', 'Commandes', 'cart', () => D.orders.filter((o) => o.status === 'payee').length], ['#/clients', 'Clients', 'users'], ['#/team', 'La team', 'mail', () => (D.subscribers || []).filter((x) => !x.seen).length], ['#/notifications', 'Notifications', 'bell'], ['#/promos', 'Promotions', 'tag'], ['#/livraison', 'Livraison', 'box']]],
+    ['Boutique', [['#/produits', 'Produits', 'box'], ['#/stock', 'Stock', 'layers'], ['#/commandes', 'Commandes', 'cart', () => D.orders.filter((o) => o.status === 'payee').length], ['#/clients', 'Clients', 'users'], ['#/ancien', 'Clients ancien site', 'users'], ['#/team', 'La team', 'mail', () => (D.subscribers || []).filter((x) => !x.seen).length], ['#/notifications', 'Notifications', 'bell'], ['#/promos', 'Promotions', 'tag'], ['#/livraison', 'Livraison', 'box']]],
     ['Contenu', [['#/magazine', 'L’actu', 'pen'], ['#/sections', 'Mise en page', 'layers'], ['#/site', 'Textes & photos', 'layout'], ['#/design', 'Charte graphique', 'pen'], ['#/musique', 'Musique & scène', 'music'], ['#/legal', 'Pages légales', 'layout'], ['#/messages', 'Messages', 'mail', () => D.messages.filter((m) => !m.read).length]]],
     ['Compte', [['#/reglages', 'Mon profil', 'users']]]
   ];
@@ -856,6 +857,77 @@
     (D.subscribers || []).forEach((s) => { if (map[s.email]) map[s.email].sub = true; });
     return map;
   }
+  /* ================= CLIENTS DE L'ANCIEN SITE (WordPress) — à part, privés ================= */
+  let LEGACY = null;
+  async function loadLegacy(force) {
+    if (LEGACY && !force) return LEGACY;
+    if (REMOTE) { const r = await S.api('admin?legacy=1'); LEGACY = r.ok && r.data ? r.data : { clients: [] }; }
+    else { try { LEGACY = JSON.parse(localStorage.getItem('fucstyle:legacy') || 'null') || { clients: [] }; } catch (e) { LEGACY = { clients: [] }; } }
+    return LEGACY;
+  }
+  const lgName = (x) => [x.first, x.last].filter(Boolean).join(' ') || x.email;
+  const lgSpent = (x) => x.orders.filter((o) => o.paid).reduce((s, o) => s + (+o.total || 0), 0);
+  const COUNTRY = { FR: 'France', BE: 'Belgique', CH: 'Suisse', LU: 'Luxembourg', CA: 'Canada', DE: 'Allemagne', ES: 'Espagne', IT: 'Italie', GB: 'Royaume-Uni', US: 'États-Unis', RE: 'La Réunion', GP: 'Guadeloupe', MQ: 'Martinique' };
+  const telHref = (p) => { let t = String(p || '').replace(/[^\d+]/g, ''); if (/^0\d{9}$/.test(t)) t = '+33' + t.slice(1); return t; };
+  views.ancien = async (c, args) => {
+    c.innerHTML = head('Clients ancien site', 'Chargement…');
+    const L = await loadLegacy();
+    const list = (L.clients || []).slice().sort((a, b) => lgSpent(b) - lgSpent(a));
+    if (args[0]) {
+      const x = list.find((y) => y.email === decodeURIComponent(args[0]).toLowerCase());
+      if (!x) { location.hash = '#/ancien'; return; }
+      const paid = x.orders.filter((o) => o.paid);
+      const tel = telHref(x.phone);
+      c.innerHTML = `<a class="back" href="#/ancien">← Clients ancien site</a>`
+        + head(lgName(x), 'Client de l’ancien site fucstyle.fr' + (x.account ? ' · avait un compte' : ''),
+          `<a class="btn" href="mailto:${esc(x.email)}">${I('mail')} Écrire</a>${tel ? `<a class="btn" href="tel:${esc(tel)}">${I('phone')} Appeler</a><a class="btn" href="https://wa.me/${esc(tel.replace('+', ''))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}`)
+        + `<div class="kpis" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><div class="l">Commandes payées</div><div class="v">${paid.length}</div></div><div class="kpi"><div class="l">Total dépensé</div><div class="v">${money(lgSpent(x))}</div></div><div class="kpi"><div class="l">Dernière commande</div><div class="v" style="font-size:1.3rem">${paid[0] ? fmtDate(paid[0].date) : '—'}</div></div></div>
+        <div class="cols cols--half">
+          <section class="panel"><div class="panel-head"><h2>Coordonnées</h2></div><div class="panel-body stack" style="gap:10px">
+            <div><span class="label">Email</span><br><a href="mailto:${esc(x.email)}"><b>${esc(x.email)}</b></a></div>
+            <div><span class="label">Téléphone</span><br>${x.phone ? `<a href="tel:${esc(tel)}"><b>${esc(x.phone)}</b></a>` : '<span style="color:var(--muted)">non renseigné</span>'}</div>
+            <div><span class="label">Adresse</span><br>${x.address ? `${esc(x.address)}${x.address2 ? '<br>' + esc(x.address2) : ''}<br>${esc(x.zip)} ${esc(x.city)}<br>${esc(COUNTRY[x.country] || x.country)}` : (x.city ? esc(x.zip + ' ' + x.city) : '<span style="color:var(--muted)">non renseignée</span>')}</div>
+          </div></section>
+          <section class="panel"><div class="panel-head"><h2>Ses commandes</h2></div><div class="panel-body stack">
+            ${x.orders.length ? x.orders.map((o) => `<div class="lg-order${o.paid ? '' : ' is-off'}"><div class="lg-top"><b>${esc(o.id)}</b><span>${fmtDate(o.date)}</span><span class="tag">${esc(o.status)}</span><b class="lg-tot">${money(o.total)}</b></div>
+              <ul>${o.items.map((it) => `<li><span>${it.qty} × ${esc(it.name)}${it.options ? ` <small>(${esc(it.options)})</small>` : ''}</span><span>${money(it.total)}</span></li>`).join('')}${o.shipping ? `<li class="lg-ship"><span>Livraison</span><span>${money(o.shipping)}</span></li>` : ''}${o.coupons && o.coupons.length ? `<li class="lg-ship"><span>Code promo : ${esc(o.coupons.join(', '))}</span><span></span></li>` : ''}</ul>
+              ${o.ship ? `<small class="lg-addr">Livré à : ${esc(o.ship)}</small>` : ''}${o.note ? `<small class="lg-addr">Note du client : ${esc(o.note)}</small>` : ''}</div>`).join('') : '<div class="empty-state"><b>Aucune commande</b>Avait un compte ou un panier, sans commande finalisée.</div>'}
+          </div></section></div>`;
+      return;
+    }
+    if (!list.length) {
+      c.innerHTML = head('Clients ancien site', 'Les clients et commandes de l’ancien site WordPress, rangés à part.')
+        + `<section class="panel"><div class="panel-body stack" style="align-items:flex-start"><p>Importe le fichier <b>clients-ancien-site-a-importer.json</b> préparé par 404 Agency. Les données restent privées : seules les personnes connectées au tableau de bord les voient.</p>
+          <label class="btn btn--primary">${I('upload')} Importer le fichier<input type="file" accept=".json,application/json" hidden data-lgfile></label><span class="hint" data-lgst></span></div></section>`;
+      $('[data-lgfile]', c).addEventListener('change', async (e) => {
+        const f = e.target.files[0]; if (!f) return; const st = $('[data-lgst]', c);
+        let data; try { data = JSON.parse(await f.text()); } catch (er) { st.textContent = 'Ce fichier n’est pas lisible.'; return; }
+        if (!data || !Array.isArray(data.clients)) { st.textContent = 'Ce n’est pas le bon fichier.'; return; }
+        st.textContent = 'Import de ' + data.clients.length + ' clients…';
+        if (REMOTE) { const r = await S.api('admin', { method: 'POST', body: { action: 'legacy', source: data.source, clients: data.clients } }); if (!r.ok) { st.textContent = 'Import impossible, réessaie.'; return; } }
+        else { try { localStorage.setItem('fucstyle:legacy', JSON.stringify(data)); } catch (er) {} }
+        LEGACY = null; toast(data.clients.length + ' clients de l’ancien site importés'); route();
+      });
+      return;
+    }
+    const buyers = list.filter((x) => x.orders.some((o) => o.paid));
+    const total = list.reduce((s, x) => s + lgSpent(x), 0);
+    c.innerHTML = head('Clients ancien site', 'Les clients de l’ancien site fucstyle.fr (WordPress), rangés à part des nouveaux. Clique sur un client pour voir ses commandes.',
+        `<button class="btn" type="button" data-copy>${I('copy')} Copier les emails</button><button class="btn" type="button" data-exp>${I('download')} Exporter (CSV)</button>`)
+      + `<div class="kpis" style="grid-template-columns:repeat(4,1fr)"><div class="kpi"><div class="l">Clients</div><div class="v">${list.length}</div></div><div class="kpi"><div class="l">Ont acheté</div><div class="v">${buyers.length}</div></div><div class="kpi"><div class="l">Chiffre d’affaires</div><div class="v">${money(total)}</div></div><div class="kpi"><div class="l">Avec téléphone</div><div class="v">${list.filter((x) => x.phone).length}</div></div></div>
+      <section class="panel"><div class="toolbar"><input class="input" type="search" placeholder="Nom, email, téléphone ou ville" data-q aria-label="Rechercher"></div><div class="table-wrap" data-list></div></section>`;
+    const draw = (q) => {
+      const l = list.filter((x) => !q || (lgName(x) + ' ' + x.email + ' ' + x.city + ' ' + x.phone).toLowerCase().includes(q));
+      $('[data-list]', c).innerHTML = l.length ? `<table class="t"><thead><tr><th>Client</th><th>Téléphone</th><th>Ville</th><th class="num">Commandes</th><th class="num">Total</th><th>Dernière</th></tr></thead><tbody>
+        ${l.map((x) => { const p = x.orders.filter((o) => o.paid); return `<tr data-lg="${esc(x.email)}"><td><b>${esc(lgName(x))}</b><br><small style="color:var(--muted)">${esc(x.email)}</small></td><td>${esc(x.phone || '—')}</td><td>${esc(x.city || '—')}</td><td class="num">${p.length}</td><td class="num"><b>${money(lgSpent(x))}</b></td><td>${p[0] ? fmtDate(p[0].date) : '—'}</td></tr>`; }).join('')}</tbody></table>`
+        : '<div class="empty-state"><b>Aucun résultat</b></div>';
+      $$('[data-lg]', c).forEach((tr) => tr.addEventListener('click', () => { location.hash = '#/ancien/' + encodeURIComponent(tr.dataset.lg); }));
+    };
+    draw(''); $('[data-q]', c).addEventListener('input', (e) => draw(e.target.value.trim().toLowerCase()));
+    $('[data-copy]', c).addEventListener('click', async () => { const t = list.map((x) => x.email).join(', '); try { await navigator.clipboard.writeText(t); toast(list.length + ' emails copiés — colle-les en « Cci »'); } catch (e) { download('emails-ancien-site.txt', t); } });
+    $('[data-exp]', c).addEventListener('click', () => download('clients-ancien-site.csv', csv([['Prénom', 'Nom', 'Email', 'Téléphone', 'Adresse', 'Code postal', 'Ville', 'Pays', 'Commandes payées', 'Total dépensé']].concat(list.map((x) => [x.first, x.last, x.email, x.phone, [x.address, x.address2].filter(Boolean).join(' '), x.zip, x.city, x.country, x.orders.filter((o) => o.paid).length, lgSpent(x).toFixed(2).replace('.', ',')]))), 'text/csv'));
+  };
+
   views.clients = (c, args) => {
     const map = customerMap();
     if (args[0]) return clientDetail(c, map[decodeURIComponent(args[0]).toLowerCase()]);

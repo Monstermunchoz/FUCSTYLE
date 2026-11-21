@@ -562,3 +562,13 @@ img:not([src]), img[src=""] { visibility: hidden; }
 .cover-pick { grid-template-columns: 140px minmax(0, 1fr); }
 .cover-pick .btn, .cover-pick .input { width: auto !important; max-width: 100%; }
 @media (max-width: 520px) { .cover-pick { grid-template-columns: minmax(0, 1fr); } }
+.lg-order { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; }
+.lg-order.is-off { opacity: .6; }
+.lg-top { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.lg-top span { color: var(--muted); font-size: 13px; }
+.lg-tot { margin-left: auto; }
+.lg-order ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.lg-order li { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.lg-order li small { color: var(--muted); }
+.lg-ship { color: var(--muted); }
+.lg-addr { color: var(--muted); }

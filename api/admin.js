@@ -3,7 +3,9 @@
    POST /api/admin {action:'password', current, next}    -> change le mot de passe
    POST /api/admin {action:'patch', list, upsert, remove} -> met à jour commandes / messages / inscrits sans rien écraser
    POST /api/admin {action:'push', subscription}         -> inscrit le téléphone aux notifications
-   GET  /api/admin?vapid=1                               -> clé publique des notifications */
+   GET  /api/admin?vapid=1                               -> clé publique des notifications
+   GET  /api/admin?legacy=1 (jeton)                      -> clients de l'ancien site (privé)
+   POST /api/admin {action:'legacy', clients}            -> importe / met à jour les clients de l'ancien site */
 import { redis, send, readBody, noDb, isAdmin, hash, sessionFor, passwordHash, getSite, getList, setList, vapid, pushToAdmin } from './_lib.js';
 
 export default async function handler(req, res) {
@@ -14,6 +16,7 @@ async function main(req, res) {
   if (req.method === 'GET' && req.query && req.query.vapid) return send(res, 200, { publicKey: (await vapid()).publicKey });
   if (req.method === 'GET') {
     if (!(await isAdmin(req))) return send(res, 401, { error: 'auth' });
+    if (req.query && req.query.legacy) return send(res, 200, (await redis.get('fuc:legacy')) || { clients: [] });
     const [site, orders, messages, subscribers] = await Promise.all([getSite(), getList('orders'), getList('messages'), getList('subscribers')]);
     return send(res, 200, { site, orders, messages, subscribers });
   }
@@ -25,6 +28,12 @@ async function main(req, res) {
     return send(res, 200, { token: sessionFor(h) });
   }
   if (!(await isAdmin(req))) return send(res, 401, { error: 'auth' });
+  if (b.action === 'legacy') {
+    const list = Array.isArray(b.clients) ? b.clients.filter((c) => c && typeof c.email === 'string' && Array.isArray(c.orders)).slice(0, 5000) : null;
+    if (!list) return send(res, 400, { error: 'format' });
+    await redis.set('fuc:legacy', { source: String(b.source || '').slice(0, 200), importedAt: new Date().toISOString(), clients: list });
+    return send(res, 200, { ok: true, count: list.length });
+  }
   if (b.action === 'password') {
     if (hash(b.current || '') !== (await passwordHash())) return send(res, 403, { error: 'current' });
     if (String(b.next || '').length < 6) return send(res, 400, { error: 'short' });
