@@ -199,6 +199,29 @@
   }
   const posts = () => D.posts.filter((p) => p.status === 'publie').sort((a, b) => b.date.localeCompare(a.date));
 
+  /* chargeur partagé de l'API YouTube (musique d'entrée + clip muet) */
+  function ytApi(cb, fail) {
+    if (window.YT && window.YT.Player) return cb();
+    const q = (window.__ytq = window.__ytq || []); q.push(cb);
+    if (window.__ytLoading) return; window.__ytLoading = true;
+    window.onYouTubeIframeAPIReady = () => q.splice(0).forEach((f) => f());
+    const sc = document.createElement('script'); sc.src = 'https://www.youtube.com/iframe_api'; sc.onerror = () => fail && fail(); document.head.append(sc);
+  }
+  /* accueil : le clip mis en avant démarre tout seul, SANS le son (la musique d'entrée joue déjà).
+     Si le visiteur remet le son du clip, la musique d'entrée s'arrête pour ne pas avoir deux sons. */
+  function autoMuteClip(root, id) {
+    const frame = $('[data-frame]', root); if (!frame || !('IntersectionObserver' in window)) return;
+    const io = new IntersectionObserver((ents) => {
+      if (!ents.some((e) => e.isIntersecting)) return; io.disconnect();
+      if (!$('[data-yt]', frame)) return; // déjà lancé à la main
+      const hold = document.createElement('div'); hold.id = 'yt-feature-' + id; frame.innerHTML = ''; frame.append(hold);
+      ytApi(() => {
+        const pl = new YT.Player(hold.id, { videoId: id, host: 'https://www.youtube-nocookie.com', playerVars: { autoplay: 1, mute: 1, playsinline: 1, rel: 0, loop: 1, playlist: id, modestbranding: 1 },
+          events: { onReady: (e) => { e.target.mute(); e.target.playVideo(); const t = setInterval(() => { try { if (!document.body.contains(frame)) return clearInterval(t); if (!e.target.isMuted() && e.target.getPlayerState() === 1) { if (music) music.stop(); clearInterval(t); } } catch (er) { clearInterval(t); } }, 800); } } });
+      }, () => { frame.innerHTML = ytCover(id, ''); bindYT(root); });
+    }, { threshold: 0.35 });
+    io.observe(frame);
+  }
   function ytCover(id, title) {
     return `<button class="yt-cover" type="button" data-yt="${esc(id)}" style="background-image:url('https://i.ytimg.com/vi/${esc(id)}/maxresdefault.jpg')" aria-label="Lire le clip ${esc(title)}"><span class="play">${ICON.play}</span></button>`;
   }
@@ -280,8 +303,7 @@
         }
       });
     };
-    if (window.YT && window.YT.Player) init();
-    else { window.onYouTubeIframeAPIReady = init; const sc = document.createElement('script'); sc.src = 'https://www.youtube.com/iframe_api'; sc.onerror = () => box.remove(); document.head.append(sc); }
+    ytApi(init, () => box.remove());
     music = { stop: () => { wanted = false; player && player.pauseVideo && player.pauseVideo(); paint(false); } };
   }
 
@@ -361,6 +383,7 @@
       $('[data-products]').innerHTML = S.visibleProducts(D).filter((p) => p.featured).map(productCard).join('');
       $('[data-clip-title]').textContent = site.clipTitle;
       clipBlock($('[data-clip]'));
+      { const c0 = (site.clips && site.clips[0]) || { id: site.clipYoutube }; if (c0.id) autoMuteClip($('[data-clip]'), c0.id); }
 
       $('[data-bio-photo]').src = site.bioPhoto;
       $('[data-bio-title]').textContent = site.bioTitle;
@@ -711,6 +734,12 @@
     if (ds.titleScale && ds.titleScale !== 1) r.setProperty('--title-scale', ds.titleScale);
     if (ds.upper === false) document.documentElement.classList.add('no-upper');
     if (ds.cards) document.documentElement.dataset.cards = ds.cards;
+    const fr = (ds.frames || []).find((f) => f.id === ds.cards);
+    if (fr) {
+      const tk = (v) => (v === 'paper' ? 'var(--paper)' : v === 'blood' ? 'var(--blood)' : v);
+      r.setProperty('--card-frame', tk(fr.bg)); r.setProperty('--card-ink', fr.fg);
+      r.setProperty('--card-muted', /^#f/i.test(fr.fg) ? 'rgba(255,255,255,.68)' : 'rgba(0,0,0,.58)');
+    }
     if (ds.photoBg) r.setProperty('--photo-bg', ds.photoBg);
   }
 

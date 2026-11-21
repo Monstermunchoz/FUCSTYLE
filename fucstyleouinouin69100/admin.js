@@ -770,6 +770,7 @@
     const GROUPS = [['skeud', 'Skeuds', 'CD, vinyles'], ['pack', 'Packs', 'Packs et collectors'], ['merch', 'Merch', 'T-shirts, casquettes…']];
     const groupOf = (p) => { const ty = ((p.type || '') + ' ' + (p.category || '')).toLowerCase(), t = (ty + ' ' + p.name).toLowerCase(); if (/pack|bundle|coffret|collector/.test(ty) && !/vinyl/.test(ty)) return 'pack'; if (/\bcd\b|vinyl|vinyle|disque|album|digipack|k7|cassette|musique/.test(t)) return 'skeud'; if (/\bpack\b|bundle|coffret/.test(t)) return 'pack'; return 'merch'; };
     const open = (views.stock.open = views.stock.open || {});
+    const typeOf = (p) => { const t = String(p.type || '').trim(); if (!t) return 'Autres'; const n = t.charAt(0).toUpperCase() + t.slice(1); return /^vinyl/i.test(n) ? 'Vinyles' : /^cd$/i.test(n) ? 'CD' : /s$/i.test(n) || /^(T-shirt)$/i.test(n) ? (n === 'T-shirt' ? 'T-shirts' : n) : n + 's'; };
     const draw = () => {
       const list = rows().filter((r) => (!q || r.p.name.toLowerCase().includes(q)) && (!fl || state(r) === fl));
       const all = rows();
@@ -781,12 +782,16 @@
         const isOpen = open[g] || ((q || fl) && gl.length);
         return `<details class="stock-grp" data-grp="${g}"${isOpen ? ' open' : ''}><summary><span class="sg-name">${label}</span><small>${sub} · ${((n) => n + ' produit' + (n > 1 ? 's' : ''))(new Set(ga.map((r) => r.p.id)).size)} · ${units} en stock</small>
           <span class="sg-alerts">${outN ? pill('out', outN + ' en rupture') : ''}${lowN ? pill('low', lowN + ' stock bas') : ''}${!outN && !lowN ? pill('ok', 'Tout est OK') : ''}</span><span class="sg-chev" aria-hidden="true">▾</span></summary>
-          ${gl.length ? `<table class="t matrix"><thead><tr><th>Produit</th><th>Variante</th><th>État</th><th class="num">Quantité</th></tr></thead><tbody>
-          ${gl.map((r) => { const i = list.indexOf(r); return `<tr><td><div class="prod"><img src="${esc(r.p.images[0] || '')}" alt=""><div><b>${esc(r.p.name)}</b><small>${esc(r.p.sku || '')}</small></div></div></td><td>${esc(r.label)}</td>
+          ${gl.length ? [...new Set(gl.map((r) => typeOf(r.p)))].map((t) => { const tl = gl.filter((r) => typeOf(r.p) === t), ta = ga.filter((r) => typeOf(r.p) === t); const k = g + ':' + t; const o = open[k] || ((q || fl) && tl.length);
+            const tOut = ta.filter((r) => state(r) === 'out').length, tLow = ta.filter((r) => state(r) === 'low').length;
+            return `<details class="stock-sub" data-sub="${esc(k)}"${o ? ' open' : ''}><summary><span class="ss-name">${esc(t)}</span><small>${((n) => n + ' produit' + (n > 1 ? 's' : ''))(new Set(ta.map((r) => r.p.id)).size)} · ${ta.reduce((s2, r) => s2 + Math.max(0, r.stock), 0)} en stock</small><span class="sg-alerts">${tOut ? pill('out', tOut + ' rupture') : ''}${tLow ? pill('low', tLow + ' bas') : ''}</span><span class="sg-chev" aria-hidden="true">▾</span></summary>
+            <table class="t matrix"><thead><tr><th>Produit</th><th>Variante</th><th>État</th><th class="num">Quantité</th></tr></thead><tbody>
+          ${tl.map((r) => { const i = list.indexOf(r); return `<tr><td><div class="prod"><img src="${esc(r.p.images[0] || '')}" alt=""><div><b>${esc(r.p.name)}</b><small>${esc(r.p.sku || '')}</small></div></div></td><td>${esc(r.label)}</td>
             <td>${pill(state(r), state(r) === 'out' ? 'Rupture' : state(r) === 'low' ? 'Stock bas' : 'OK')}</td>
-            <td class="num"><div class="stepper"><button type="button" data-step="${i}" data-d="-1" aria-label="Retirer 1">−</button><input type="number" min="0" value="${r.stock}" data-set="${i}" aria-label="Quantité"><button type="button" data-step="${i}" data-d="1" aria-label="Ajouter 1">+</button></div></td></tr>`; }).join('')}</tbody></table>` : '<p class="hint" style="padding:12px 16px">Aucune ligne ne correspond à ce filtre ici.</p>'}</details>`;
+            <td class="num"><div class="stepper"><button type="button" data-step="${i}" data-d="-1" aria-label="Retirer 1">−</button><input type="number" min="0" value="${r.stock}" data-set="${i}" aria-label="Quantité"><button type="button" data-step="${i}" data-d="1" aria-label="Ajouter 1">+</button></div></td></tr>`; }).join('')}</tbody></table></details>`; }).join('') : '<p class="hint" style="padding:12px 16px">Aucune ligne ne correspond à ce filtre ici.</p>'}</details>`;
       }).join('');
-      $$('details[data-grp]', c).forEach((d) => d.addEventListener('toggle', () => { open[d.dataset.grp] = d.open; }));
+      $$('details[data-grp]', c).forEach((d) => d.addEventListener('toggle', (e) => { if (e.target === d) open[d.dataset.grp] = d.open; }));
+      $$('details[data-sub]', c).forEach((d) => d.addEventListener('toggle', () => { open[d.dataset.sub] = d.open; }));
       const apply = (r, n) => { n = Math.max(0, n | 0); if (r.v) r.v.stock = n; else r.p.stock = n; save(); };
       $$('[data-step]', c).forEach((b) => b.addEventListener('click', () => { const r = list[+b.dataset.step]; apply(r, r.stock + +b.dataset.d); draw(); }));
       $$('[data-set]', c).forEach((inp) => inp.addEventListener('change', () => { apply(list[+inp.dataset.set], +inp.value); toast('Stock mis à jour'); draw(); }));
@@ -1488,9 +1493,16 @@
   /* ================= TYPOS & COULEURS ================= */
   const FONTS_DISPLAY = ['Big Shoulders Stencil Display', 'Anton', 'Bebas Neue', 'Oswald', 'Archivo Black', 'Bungee', 'Rubik Mono One', 'Permanent Marker', 'Rock Salt', 'Black Ops One', 'Teko', 'Staatliches'];
   const FONTS_TEXT = ['Archivo', 'Inter', 'DM Sans', 'Space Grotesk', 'Work Sans', 'Manrope', 'Rubik', 'IBM Plex Sans', 'Space Mono'];
-  const DESIGN_DEFAULT = { display: 'Big Shoulders Stencil Display', text: 'Archivo', blood: '#b0001a', wall: '#cdc8be', paper: '#f3f1ec', titleScale: 1, upper: true, cards: 'beige', photoBg: '#d3cdc2' };
+  const FRAMES_DEFAULT = [{ id: 'beige', name: 'Beige', bg: 'paper', fg: '#111111' }, { id: 'noir', name: 'Noir', bg: '#141414', fg: '#ffffff' }, { id: 'blanc', name: 'Blanc', bg: '#ffffff', fg: '#111111' }, { id: 'kraft', name: 'Kraft', bg: '#b99a6b', fg: '#1a1208' }, { id: 'rouge', name: 'Rouge', bg: 'blood', fg: '#ffffff' }];
+  const DESIGN_DEFAULT = { display: 'Big Shoulders Stencil Display', text: 'Archivo', blood: '#b0001a', wall: '#cdc8be', paper: '#f3f1ec', titleScale: 1, upper: true, cards: 'beige', photoBg: '#d3cdc2',
+    frames: FRAMES_DEFAULT, photoBgs: ['#ffffff', '#e6e1d8', '#d3cdc2', '#bdb6aa', '#9d968a', '#2a2a2a'], swatches: ['#b0001a', '#ffd400', '#0a0a0a', '#ffffff', '#cdc8be', '#f3f1ec'] };
+  const SECTIONS_DS = { fd: ['display'], ft: ['text'], col: ['blood', 'wall', 'paper'], fr: ['cards', 'frames'], pb: ['photoBg', 'photoBgs'], ti: ['titleScale', 'upper'] };
+  const inkFor = (hex) => { const h = String(hex).replace('#', ''); if (h.length < 6) return '#111111'; const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.substr(i, 2), 16)); return (r * 299 + g * 587 + b * 114) / 1000 > 140 ? '#111111' : '#ffffff'; };
   views.design = (c) => {
-    const ds = Object.assign({}, DESIGN_DEFAULT, D.design || {});
+    const saved = Object.assign(clone(DESIGN_DEFAULT), clone(D.design || {}));
+    const ds = clone(saved);
+    if (views.design.draft) { Object.assign(ds, views.design.draft); views.design.draft = null; } // brouillon gardé quand on redessine
+    const tok = (v) => (v === 'paper' ? ds.paper : v === 'blood' ? ds.blood : v);
     const fam = (f) => 'family=' + f.replace(/ /g, '+') + ':wght@400;700;900';
     const CF = D.customFonts = D.customFonts || [];
     const gNames = CF.filter((f) => f.google).map((f) => f.name);
@@ -1498,51 +1510,77 @@
     l.href = 'https://fonts.googleapis.com/css2?' + FONTS_DISPLAY.concat(FONTS_TEXT, gNames).map(fam).join('&') + '&display=swap'; document.head.append(l);
     let ff = document.getElementById('cf-faces'); if (!ff) { ff = document.createElement('style'); ff.id = 'cf-faces'; document.head.append(ff); }
     ff.textContent = CF.filter((f) => f.url).map((f) => `@font-face{font-family:'${f.name.replace(/'/g, '')}';src:url('${f.url}');font-display:swap}`).join('');
-    const dispList = CF.map((f) => f.name).concat(FONTS_DISPLAY), textList = CF.map((f) => f.name).concat(FONTS_TEXT);
-    const mine = (f) => CF.some((x) => x.name === f) ? '<i class="font-mine">Ma police</i>' : '';
-    c.innerHTML = head('Charte graphique', 'Polices et couleurs du site entier. Pour une section précise, va dans Mise en page › Couleurs.', `<a class="btn" href="../index.html" target="_blank" rel="noopener">${I('eye')} Voir le site</a>`)
+    const mineFor = (role) => CF.map((f, i) => Object.assign({ i }, f)).filter((f) => !f.role || f.role === role);
+    const hist = D.designHistory || [];
+    const secFoot = (k) => `<div class="ds-foot" data-foot="${k}"><span class="ds-dirty" data-dirty="${k}" hidden>● Modifié, pas encore enregistré</span><button class="btn btn--sm" type="button" data-undo="${k}" hidden>Annuler</button><button class="btn btn--sm btn--primary" type="button" data-savesec="${k}" disabled>Enregistrer</button></div>`;
+    const fontPanel = (k, role, title, sub) => {
+      const mine = mineFor(role), base = role === 'display' ? FONTS_DISPLAY : FONTS_TEXT, key = role === 'display' ? 'display' : 'text';
+      const btn = (f, custom) => `<div class="font-cell"><button type="button" data-font="${esc(f.name || f)}" aria-pressed="${ds[key] === (f.name || f)}" style="font-family:'${esc(f.name || f)}'">${role === 'display' ? 'FUCSTYLE 69' : `<b>${esc(f.name || f)}</b><span>Freestyle tous les dimanches.</span>`}${custom ? '<i class="font-mine">Ma police</i>' : ''}</button>${custom ? `<button class="x-del" type="button" data-fdel="${f.i}" aria-label="Supprimer ${esc(f.name)}">×</button>` : ''}</div>`;
+      return `<section class="panel"><div class="panel-head"><div><h2>${title}</h2><p>${sub}</p></div></div>
+        <div class="panel-body font-grid${role === 'text' ? ' font-grid--text' : ''}" data-${k}>${mine.map((f) => btn(f, true)).join('')}${base.map((f) => btn(f, false)).join('')}</div>
+        <div class="panel-body font-add"><label class="btn btn--sm">${I('upload')} Ajouter un fichier de police<input type="file" accept=".ttf,.otf,.woff,.woff2,font/*" hidden data-fontfile="${role}"></label>
+          <div class="font-g"><input placeholder="ou nom Google Fonts (ex. Rubik Glitch)" data-gname="${role}" aria-label="Nom d’une police Google Fonts"><button class="btn btn--sm" type="button" data-gadd="${role}">Ajouter</button></div>
+          <span class="hint">Dafont : « Télécharger », ouvre le .zip, prends le .ttf ou .otf. Vérifie que la police est libre pour un usage commercial.</span></div>${secFoot(k)}</section>`;
+    };
+    const colField = (key, label) => `<div class="field col-field"><label>${label}</label><div class="col-row"><input type="color" data-col="${key}" value="${esc(ds[key])}" aria-label="${label}"><code data-colv="${key}">${esc(ds[key])}</code></div>
+      <div class="sw-row">${ds.swatches.map((s) => `<button type="button" class="sw" data-swto="${key}" data-sw="${esc(s)}" style="background:${esc(s)}" aria-label="Mettre ${esc(s)}"></button>`).join('')}</div></div>`;
+    c.innerHTML = head('Charte graphique', 'Chaque bloc a son bouton Enregistrer. Tant que tu n’as pas enregistré, le site ne change pas et « Annuler » remet comme avant.',
+        `${hist.length ? `<button class="btn" type="button" data-histback>↶ Revenir à la version d’avant</button>` : ''}<a class="btn" href="../index.html" target="_blank" rel="noopener">${I('eye')} Voir le site</a>`)
       + `<div class="cols"><div class="stack">
-        <section class="panel"><div class="panel-head"><div><h2>Police des titres</h2><p>Les gros titres, les prix, les boutons.</p></div></div><div class="panel-body font-grid" data-fd>${dispList.map((f) => `<button type="button" data-font="${esc(f)}" aria-pressed="${ds.display === f}" style="font-family:'${esc(f)}'">FUCSTYLE 69${mine(f)}</button>`).join('')}</div></section>
-        <section class="panel"><div class="panel-head"><div><h2>Police des textes</h2><p>Les paragraphes, les menus, les fiches produit.</p></div></div><div class="panel-body font-grid font-grid--text" data-ft>${textList.map((f) => `<button type="button" data-font="${esc(f)}" aria-pressed="${ds.text === f}" style="font-family:'${esc(f)}'"><b>${esc(f)}</b><span>Freestyle tous les dimanches.</span>${mine(f)}</button>`).join('')}</div></section>
-        <section class="panel"><div class="panel-head"><div><h2>Mes polices</h2><p>Ajoute une police téléchargée sur Dafont, 1001 Fonts, Fontesk… (fichier .ttf, .otf, .woff ou .woff2), ou une police Google Fonts par son nom.</p></div></div>
-          <div class="panel-body stack">
-            <div class="font-drop"><label class="btn btn--primary" style="width:max-content">${I('upload')} Ajouter un fichier de police<input type="file" accept=".ttf,.otf,.woff,.woff2,font/*" hidden data-fontfile></label>
-              <span class="hint">Sur Dafont : bouton « Télécharger », ouvre le .zip, prends le fichier .ttf ou .otf. Vérifie que la police est gratuite pour un usage commercial.</span></div>
-            <div class="field"><label for="gf">…ou nom d’une police Google Fonts</label><div style="display:flex;gap:8px"><input id="gf" placeholder="ex. Rubik Glitch" data-gname><button class="btn" type="button" data-gadd>Ajouter</button></div></div>
-            ${CF.length ? `<div class="font-list">${CF.map((f, i) => `<div class="font-row"><span style="font-family:'${esc(f.name)}';font-size:22px">${esc(f.name)}</span><small>${f.google ? 'Google Fonts' : 'Fichier'}</small><button class="btn btn--icon btn--sm btn--danger" type="button" data-fdel="${i}" aria-label="Retirer">${I('trash')}</button></div>`).join('')}</div>` : ''}
-          </div></section>
-        <section class="panel"><div class="panel-head"><h2>Couleurs</h2></div><div class="panel-body grid-3">
-          <div class="field"><label for="cb">Rouge (accent)</label><input id="cb" type="color" data-col="blood" value="${esc(ds.blood)}"></div>
-          <div class="field"><label for="cw">Fond béton</label><input id="cw" type="color" data-col="wall" value="${esc(ds.wall)}"></div>
-          <div class="field"><label for="cp">Fond papier</label><input id="cp" type="color" data-col="paper" value="${esc(ds.paper)}"></div></div></section>
-        <section class="panel"><div class="panel-head"><div><h2>Cadre des produits</h2><p>La couleur du cadre photo autour de chaque produit. Le noir fait ressortir les T-shirts et vinyles blancs.</p></div></div><div class="panel-body card-frames">
-          ${[['beige', 'Beige', ds.paper, '#111'], ['noir', 'Noir', '#141414', '#fff'], ['blanc', 'Blanc', '#fff', '#111'], ['kraft', 'Kraft', '#b99a6b', '#1a1208'], ['rouge', 'Rouge', ds.blood, '#fff']].map(([k, l, bg, fg]) => `<button type="button" data-cards="${k}" aria-pressed="${(ds.cards || 'beige') === k}"><span style="background:${bg};color:${fg}"><i></i><b>T-shirt</b></span>${l}</button>`).join('')}</div></section>
-        <section class="panel"><div class="panel-head"><div><h2>Fond des photos produits</h2><p>Plus foncé = les produits blancs ressortent mieux. Pour un T-shirt blanc, utilise aussi le bouton ✂ « Détourer » sur sa photo.</p></div></div><div class="panel-body photo-bgs">
-          ${['#ffffff', '#e6e1d8', '#d3cdc2', '#bdb6aa', '#9d968a', '#2a2a2a'].map((col) => `<button type="button" data-pbg="${col}" aria-pressed="${(ds.photoBg || '#d3cdc2') === col}" style="background:${col}" aria-label="${col}"></button>`).join('')}
-          <input type="color" data-pbgc value="${esc(ds.photoBg || '#d3cdc2')}" aria-label="Autre couleur"></div></section>
-        <section class="panel"><div class="panel-head"><h2>Titres</h2></div><div class="panel-body stack">
-          <div class="field"><label for="ts">Taille des grands titres <b data-tsv>${Math.round(ds.titleScale * 100)} %</b></label><input id="ts" type="range" min="0.7" max="1.3" step="0.05" value="${ds.titleScale}" data-ts></div>
-          <label class="switch"><input type="checkbox" data-up${ds.upper ? ' checked' : ''}> Titres en majuscules</label></div></section>
+        ${fontPanel('fd', 'display', 'Police des titres', 'Les gros titres, les prix, les boutons.')}
+        ${fontPanel('ft', 'text', 'Police des textes', 'Les paragraphes, les menus, les fiches produit.')}
+        <section class="panel"><div class="panel-head"><div><h2>Couleurs</h2><p>Touche une pastille de ta palette, ou choisis n’importe quelle couleur avec la pipette.</p></div></div>
+          <div class="panel-body grid-3">${colField('blood', 'Rouge (accent)')}${colField('wall', 'Fond béton')}${colField('paper', 'Fond papier')}</div>
+          <div class="panel-body palette"><span class="label">Ma palette</span><div class="sw-row">${ds.swatches.map((s, i) => `<span class="sw-edit"><span class="sw" style="background:${esc(s)}"></span><button class="x-del" type="button" data-swdel="${i}" aria-label="Retirer ${esc(s)}">×</button></span>`).join('')}
+            <label class="sw-add" title="Ajouter une couleur"><input type="color" data-swadd value="#ff2a44">+</label></div><span class="hint">« + » ouvre la pipette : la couleur choisie s’ajoute à ta palette.</span></div>${secFoot('col')}</section>
+        <section class="panel"><div class="panel-head"><div><h2>Cadre des produits</h2><p>La couleur du cadre autour de chaque produit dans la boutique.</p></div></div>
+          <div class="panel-body card-frames" data-frames>${ds.frames.map((f, i) => `<div class="frame-cell"><button type="button" data-cards="${esc(f.id)}" aria-pressed="${ds.cards === f.id}"><span style="background:${esc(tok(f.bg))};color:${esc(f.fg)}"><i></i><b>T-shirt</b></span>${esc(f.name)}</button>${ds.frames.length > 1 ? `<button class="x-del" type="button" data-frdel="${i}" aria-label="Supprimer le cadre ${esc(f.name)}">×</button>` : ''}</div>`).join('')}
+            <label class="frame-add" title="Ajouter un cadre"><input type="color" data-fradd value="#3a3a3a"><span>+</span>Ajouter</label></div>${secFoot('fr')}</section>
+        <section class="panel"><div class="panel-head"><div><h2>Fond des photos produits</h2><p>Plus foncé = les produits blancs ressortent mieux. Pour un T-shirt blanc, utilise aussi ✂ « Détourer » sur sa photo.</p></div></div>
+          <div class="panel-body photo-bgs">${ds.photoBgs.map((col, i) => `<span class="sw-edit"><button type="button" data-pbg="${esc(col)}" aria-pressed="${ds.photoBg === col}" style="background:${esc(col)}" aria-label="${esc(col)}"></button>${ds.photoBgs.length > 1 ? `<button class="x-del" type="button" data-pbdel="${i}" aria-label="Retirer ${esc(col)}">×</button>` : ''}</span>`).join('')}
+            <label class="sw-add sw-add--big" title="Ajouter une couleur"><input type="color" data-pbadd value="#8a8378">+</label></div>${secFoot('pb')}</section>
+        <section class="panel"><div class="panel-head"><h2>Titres</h2></div><div class="panel-body ti-grid">
+          <div class="stack"><div class="field"><label for="ts">Taille des grands titres <b data-tsv>${Math.round(ds.titleScale * 100)} %</b></label><input id="ts" type="range" min="0.7" max="1.3" step="0.05" value="${ds.titleScale}" data-ts></div>
+            <label class="switch"><input type="checkbox" data-up${ds.upper ? ' checked' : ''}> Titres en majuscules</label></div>
+          <div class="ti-ex" data-tiex>Dispo les zins</div></div>${secFoot('ti')}</section>
       </div>
       <div class="stack"><section class="panel" style="position:sticky;top:80px"><div class="panel-head"><h2>Aperçu</h2></div><div class="panel-body design-prev" data-prev></div>
-        <div class="panel-body" style="border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end"><button class="btn" type="button" data-reset>Par défaut</button><button class="btn btn--primary" type="button" data-save>Appliquer au site</button></div></section></div></div>`;
+        <div class="panel-body" style="border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end"><button class="btn" type="button" data-reset>Tout remettre par défaut</button></div></section></div></div>`;
+
+    const same = (k) => SECTIONS_DS[k].every((key) => JSON.stringify(ds[key]) === JSON.stringify(saved[key]));
     const paint = () => {
+      const fr = ds.frames.find((f) => f.id === ds.cards) || ds.frames[0];
       $('[data-prev]', c).innerHTML = `<div style="background:${ds.wall};padding:22px;border-radius:6px;font-family:'${ds.text}'">
         <div style="font-family:'${ds.display}';font-weight:900;font-size:${2.8 * ds.titleScale}rem;line-height:.9;${ds.upper ? 'text-transform:uppercase' : ''}">Dispo les zins</div>
         <p style="margin:12px 0">L’album 69💯 Le🩸, le merch et les éditions collector.</p>
-        <span style="display:inline-block;background:${ds.blood};color:#fff;font-family:'${ds.display}';font-weight:900;font-size:1.6rem;padding:4px 12px;transform:rotate(3deg)">25,00€</span>
+        <div style="display:flex;gap:16px;align-items:flex-start"><div style="background:${tok(fr.bg)};color:${fr.fg};padding:8px 8px 12px;width:140px;box-shadow:0 10px 18px -10px #0008;transform:rotate(-1.5deg)"><div style="aspect-ratio:1;background:${ds.photoBg};display:grid;place-items:center"><svg viewBox="0 0 60 60" width="70" height="70"><path d="M18 8l12 5 12-5 14 10-6 9-6-3v30H18V24l-6 3-6-9z" fill="#fff" stroke="#0002"/></svg></div><b style="display:block;margin-top:8px;font-size:.9rem">T-shirt</b><small style="opacity:.7">Logo 69💯 Le🩸</small></div>
+        <span style="display:inline-block;background:${ds.blood};color:#fff;font-family:'${ds.display}';font-weight:900;font-size:1.6rem;padding:4px 12px;transform:rotate(3deg)">25,00€</span></div>
         <div style="background:${ds.paper};margin-top:16px;padding:12px;font-size:.9rem">Fond papier — sections claires</div></div>`;
+      const ex = $('[data-tiex]', c); ex.style.fontFamily = `'${ds.display}'`; ex.style.fontSize = (2.6 * ds.titleScale) + 'rem'; ex.style.textTransform = ds.upper ? 'uppercase' : 'none';
+      Object.keys(SECTIONS_DS).forEach((k) => { const d = !same(k); $(`[data-dirty="${k}"]`, c).hidden = !d; $(`[data-undo="${k}"]`, c).hidden = !d; $(`[data-savesec="${k}"]`, c).disabled = !d; });
     };
+    const pushHist = () => { D.designHistory = [clone(Object.assign(clone(DESIGN_DEFAULT), D.design || {}))].concat(D.designHistory || []).slice(0, 15); };
+    const saveSec = (k, msg) => { pushHist(); const nd = Object.assign(clone(DESIGN_DEFAULT), clone(D.design || {})); SECTIONS_DS[k].forEach((key) => { nd[key] = clone(ds[key]); saved[key] = clone(ds[key]); }); D.design = nd; save(msg || 'Enregistré sur le site'); paint(); };
+    $$('[data-savesec]', c).forEach((b) => b.addEventListener('click', () => saveSec(b.dataset.savesec)));
+    $$('[data-undo]', c).forEach((b) => b.addEventListener('click', () => { SECTIONS_DS[b.dataset.undo].forEach((key) => (ds[key] = clone(saved[key]))); redraw(); }));
+    const redraw = () => { views.design.draft = ds; route(); };
     const pick = (host, key) => host.addEventListener('click', (e) => { const b = e.target.closest('[data-font]'); if (!b) return; ds[key] = b.dataset.font; $$('[data-font]', host).forEach((x) => x.setAttribute('aria-pressed', x === b)); paint(); });
     pick($('[data-fd]', c), 'display'); pick($('[data-ft]', c), 'text');
-    $$('[data-col]', c).forEach((i) => i.addEventListener('input', () => { ds[i.dataset.col] = i.value; paint(); }));
-    $$('[data-pbg]', c).forEach((b) => b.addEventListener('click', () => { ds.photoBg = b.dataset.pbg; $('[data-pbgc]', c).value = ds.photoBg; $$('[data-pbg]', c).forEach((x) => x.setAttribute('aria-pressed', x === b)); }));
-    $('[data-pbgc]', c).addEventListener('input', (e) => { ds.photoBg = e.target.value; $$('[data-pbg]', c).forEach((x) => x.setAttribute('aria-pressed', 'false')); });
+    $$('[data-col]', c).forEach((i) => i.addEventListener('input', () => { ds[i.dataset.col] = i.value; $(`[data-colv="${i.dataset.col}"]`, c).textContent = i.value; paint(); }));
+    $$('[data-swto]', c).forEach((b) => b.addEventListener('click', () => { const k = b.dataset.swto; ds[k] = b.dataset.sw; $(`[data-col="${k}"]`, c).value = ds[k]; $(`[data-colv="${k}"]`, c).textContent = ds[k]; paint(); }));
+    $('[data-swadd]', c).addEventListener('change', (e) => { if (!ds.swatches.includes(e.target.value)) { ds.swatches.push(e.target.value); const nd = Object.assign(clone(DESIGN_DEFAULT), clone(D.design || {}), { swatches: clone(ds.swatches) }); saved.swatches = clone(ds.swatches); D.design = nd; save('Couleur ajoutée à ta palette'); } redraw(); });
+    $$('[data-swdel]', c).forEach((b) => b.addEventListener('click', () => { ds.swatches.splice(+b.dataset.swdel, 1); D.design = Object.assign(clone(DESIGN_DEFAULT), clone(D.design || {}), { swatches: clone(ds.swatches) }); saved.swatches = clone(ds.swatches); save('Couleur retirée de ta palette'); redraw(); }));
     $$('[data-cards]', c).forEach((b) => b.addEventListener('click', () => { ds.cards = b.dataset.cards; $$('[data-cards]', c).forEach((x) => x.setAttribute('aria-pressed', x === b)); paint(); }));
+    $('[data-fradd]', c).addEventListener('change', (e) => { const col = e.target.value; const id = 'f' + Date.now().toString(36); ds.frames = ds.frames.concat([{ id, name: 'Perso ' + (ds.frames.length + 1), bg: col, fg: inkFor(col) }]); ds.cards = id; redraw(); });
+    $$('[data-frdel]', c).forEach((b) => b.addEventListener('click', () => { const f = ds.frames[+b.dataset.frdel]; ds.frames = ds.frames.filter((x, i) => i !== +b.dataset.frdel); if (ds.cards === f.id) ds.cards = ds.frames[0].id; redraw(); }));
+    $$('[data-pbg]', c).forEach((b) => b.addEventListener('click', () => { ds.photoBg = b.dataset.pbg; $$('[data-pbg]', c).forEach((x) => x.setAttribute('aria-pressed', x === b)); paint(); }));
+    $('[data-pbadd]', c).addEventListener('change', (e) => { if (!ds.photoBgs.includes(e.target.value)) ds.photoBgs = ds.photoBgs.concat([e.target.value]); ds.photoBg = e.target.value; redraw(); });
+    $$('[data-pbdel]', c).forEach((b) => b.addEventListener('click', () => { const col = ds.photoBgs[+b.dataset.pbdel]; ds.photoBgs = ds.photoBgs.filter((x, i) => i !== +b.dataset.pbdel); if (ds.photoBg === col) ds.photoBg = ds.photoBgs[0]; redraw(); }));
     $('[data-ts]', c).addEventListener('input', (e) => { ds.titleScale = +e.target.value; $('[data-tsv]', c).textContent = Math.round(ds.titleScale * 100) + ' %'; paint(); });
     $('[data-up]', c).addEventListener('change', (e) => { ds.upper = e.target.checked; paint(); });
-    $('[data-fontfile]', c).addEventListener('change', async (e) => {
-      const f = e.target.files[0]; if (!f) return;
+    const addFont = (entry) => { CF.push(entry); D.customFonts = CF; const key = entry.role === 'text' ? 'text' : 'display'; ds[key] = entry.name; save('Police « ' + entry.name + ' » ajoutée — appuie sur Enregistrer pour l’utiliser'); redraw(); };
+    $$('[data-fontfile]', c).forEach((inp) => inp.addEventListener('change', async (e) => {
+      const f = e.target.files[0]; if (!f) return; const role = inp.dataset.fontfile;
       const ext = (f.name.match(/\.(ttf|otf|woff2?)$/i) || [])[1];
       if (!ext) return toast('Choisis un fichier .ttf, .otf, .woff ou .woff2 (pas le .zip : ouvre-le d’abord).', true);
       if (f.size > 3 * 1024 * 1024) return toast('Police trop lourde (3 Mo maximum).', true);
@@ -1550,16 +1588,26 @@
       const dataUrl = await new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).replace(/^data:[^;]*;/, 'data:font/' + ext.toLowerCase() + ';')); fr.readAsDataURL(f); });
       let url = dataUrl;
       if (REMOTE) { const r = await S.api('upload', { method: 'POST', body: { name, dataUrl, kind: 'font' } }); if (r.ok && r.data && r.data.url) url = r.data.url; else if (r.status === 503) toast('Stockage Vercel Blob pas encore branché : la police est gardée dans le site en attendant.', true); }
-      CF.push({ name, url }); D.customFonts = CF; save('Police « ' + name + ' » ajoutée — choisis-la dans la liste'); route();
+      addFont({ name, url, role });
+    }));
+    $$('[data-gadd]', c).forEach((b) => b.addEventListener('click', () => {
+      const role = b.dataset.gadd; const n = $(`[data-gname="${role}"]`, c).value.trim().replace(/\s+/g, ' ').replace(/(^|\s)\S/g, (x) => x.toUpperCase());
+      if (!n) return; if (CF.some((x) => x.name === n) || FONTS_DISPLAY.concat(FONTS_TEXT).includes(n)) return toast('Cette police est déjà dans la liste.', true);
+      addFont({ name: n, google: true, role });
+    }));
+    $$('[data-fdel]', c).forEach((b) => b.addEventListener('click', async () => {
+      const f = CF[+b.dataset.fdel]; if (!f) return;
+      if (!(await confirmBox('Supprimer la police « ' + f.name + ' » ?', 'Si elle est utilisée sur le site, la police d’origine revient.', 'Supprimer'))) return;
+      CF.splice(+b.dataset.fdel, 1); D.customFonts = CF;
+      if (D.design) { if (D.design.display === f.name) D.design.display = DESIGN_DEFAULT.display; if (D.design.text === f.name) D.design.text = DESIGN_DEFAULT.text; }
+      if (ds.display === f.name) ds.display = saved.display = (D.design || DESIGN_DEFAULT).display; if (ds.text === f.name) ds.text = saved.text = (D.design || DESIGN_DEFAULT).text;
+      save('Police supprimée'); redraw();
+    }));
+    const hb = $('[data-histback]', c); if (hb) hb.addEventListener('click', async () => {
+      if (!(await confirmBox('Revenir à la version d’avant ?', 'La charte enregistrée juste avant la dernière modification revient sur le site.', 'Revenir'))) return;
+      const prev = (D.designHistory || []).shift(); if (!prev) return; D.design = prev; save('Version d’avant remise sur le site'); route();
     });
-    $('[data-gadd]', c).addEventListener('click', () => {
-      const n = $('[data-gname]', c).value.trim().replace(/\s+/g, ' ').replace(/(^|\s)\S/g, (x) => x.toUpperCase());
-      if (!n) return; if (dispList.includes(n)) return toast('Cette police est déjà dans la liste.', true);
-      CF.push({ name: n, google: true }); D.customFonts = CF; save('Police « ' + n + ' » ajoutée'); route();
-    });
-    $$('[data-fdel]', c).forEach((b) => b.addEventListener('click', () => { const f = CF.splice(+b.dataset.fdel, 1)[0]; D.customFonts = CF; if (f && D.design) { if (D.design.display === f.name) delete D.design.display; if (D.design.text === f.name) delete D.design.text; } save('Police retirée'); route(); }));
-    $('[data-reset]', c).addEventListener('click', () => { delete D.design; save('Typos et couleurs d’origine remises'); route(); });
-    $('[data-save]', c).addEventListener('click', () => { D.design = ds; save('Typos et couleurs appliquées au site'); });
+    $('[data-reset]', c).addEventListener('click', async () => { if (!(await confirmBox('Tout remettre par défaut ?', 'Polices, couleurs, cadres et fonds d’origine. Tes polices et ta palette restent disponibles.', 'Remettre'))) return; pushHist(); D.design = Object.assign(clone(DESIGN_DEFAULT), { swatches: ds.swatches, photoBgs: ds.photoBgs, frames: ds.frames }); save('Charte d’origine remise'); route(); });
     paint();
   };
 
@@ -1718,8 +1766,38 @@
   };
 
   /* ================= MUSIQUE & SCÈNE ================= */
+  /* ---------- glisser-déposer (souris et doigt) avec poignée ✥ ---------- */
+  const GRIP = '<span class="grip" title="Glisser pour déplacer" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg></span>';
+  function sortable(box, itemSel, onDone) {
+    let drag = null, ph = null;
+    box.addEventListener('pointerdown', (e) => {
+      const g = e.target.closest('.grip'); if (!g || !box.contains(g)) return;
+      const it = g.closest(itemSel); if (!it) return; e.preventDefault();
+      const r = it.getBoundingClientRect(); drag = { it, dx: e.clientX - r.left, dy: e.clientY - r.top };
+      ph = it.cloneNode(false); ph.className = it.className + ' sort-ph'; ph.style.height = r.height + 'px'; ph.style.width = r.width + 'px';
+      it.after(ph); Object.assign(it.style, { position: 'fixed', left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px', zIndex: 1000, pointerEvents: 'none' }); it.classList.add('is-drag');
+      g.setPointerCapture && g.setPointerCapture(e.pointerId);
+    });
+    const move = (e) => {
+      if (!drag) return; e.preventDefault();
+      drag.it.style.left = (e.clientX - drag.dx) + 'px'; drag.it.style.top = (e.clientY - drag.dy) + 'px';
+      const over = document.elementFromPoint(e.clientX, e.clientY); const t = over && over.closest(itemSel);
+      if (t && t !== drag.it && t !== ph && box.contains(t)) { const r = t.getBoundingClientRect(); const horiz = r.width < box.clientWidth * 0.6; const after = horiz ? e.clientX > r.left + r.width / 2 : e.clientY > r.top + r.height / 2; after ? t.after(ph) : t.before(ph); }
+      const y = e.clientY; if (y < 70) window.scrollBy(0, -12); else if (y > innerHeight - 50) window.scrollBy(0, 12);
+    };
+    const up = () => {
+      if (!drag) return; const it = drag.it; ph.replaceWith(it); it.removeAttribute('style'); it.classList.remove('is-drag'); drag = null; ph = null;
+      onDone($$(itemSel, box).map((x) => +x.dataset.idx));
+    };
+    window.addEventListener('pointermove', move, { passive: false }); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+  }
+  const saveBar = (k, label) => `<div class="ds-foot" data-sbar="${k}" hidden><span class="ds-dirty">● Modifié, pas encore enregistré</span><button class="btn btn--sm" type="button" data-scancel="${k}">Annuler</button><button class="btn btn--sm btn--primary" type="button" data-ssave="${k}">${label}</button></div>`;
+
   views.musique = (c) => {
     const ytId = (u) => { const m = String(u).match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/); return m ? m[1] : (/^[\w-]{11}$/.test(u) ? u : ''); };
+    /* brouillons : rien ne part sur le site tant qu'on n'a pas appuyé sur Enregistrer */
+    const dr = { clips: clone(D.site.clips), fs: clone(D.freestyles), al: clone(D.albums) };
+    const dirty = { clips: false, fs: false, al: false };
     const draw = () => {
       const curId = ytId(D.site.introTrack || '') || ((D.site.clips[0] && D.site.clips[0].id) || '');
       c.innerHTML = head('Musique & scène', 'Musique d’entrée, clips, freestyles, discographie et dates de concert.')
@@ -1741,30 +1819,41 @@
               <div class="field"><label for="its">Commencer à (secondes)</label><input id="its" data-introstart inputmode="numeric" value="${esc(D.site.introStart || '')}" placeholder="0"><span class="hint">Pour démarrer direct sur le refrain.</span></div></div>
             <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn--primary" type="button" data-introsave>Enregistrer la musique</button><a class="btn" href="../index.html" target="_blank" rel="noopener">${I('ext')} Écouter sur le site</a></div>
             <span class="hint">Si le téléphone bloque le son au départ, la musique se lance dès que le visiteur touche l’écran.</span></div></section>
-        <section class="panel"><div class="panel-head"><div><h2>Clips YouTube</h2><p>Le premier est mis en avant sur l’accueil.</p></div></div><div class="panel-body">
-          <div class="list-edit">${D.site.clips.map((cl, i) => `<div class="list-item"><img src="https://i.ytimg.com/vi/${esc(cl.id)}/mqdefault.jpg" alt=""><div class="f"><input class="input" value="${esc(cl.title)}" data-cltitle="${i}" aria-label="Titre du clip"><small style="color:var(--muted)">youtube.com/watch?v=${esc(cl.id)}</small></div>
-            <div class="row-actions">${i ? `<button class="btn btn--icon btn--sm" type="button" data-clup="${i}" aria-label="Monter">${I('left')}</button>` : ''}<button class="btn btn--icon btn--sm btn--danger" type="button" data-clrm="${i}" aria-label="Supprimer">${I('trash')}</button></div></div>`).join('')}</div>
-          <div class="url-row"><input class="input" placeholder="Lien YouTube du clip" data-clurl><input class="input" placeholder="Titre" data-clname><button class="btn btn--primary" type="button" data-cladd>Ajouter</button></div></div></section>
+        <section class="panel"><div class="panel-head"><div><h2>Clips YouTube</h2><p>Attrape la poignée ✥ pour changer l’ordre. Le premier est mis en avant sur l’accueil.</p></div></div><div class="panel-body">
+          <div class="list-edit" data-clsort>${dr.clips.map((cl, i) => `<div class="list-item sort-item" data-idx="${i}">${GRIP}<img src="https://i.ytimg.com/vi/${esc(cl.id)}/mqdefault.jpg" alt=""><div class="f"><input class="input" value="${esc(cl.title)}" data-cltitle="${i}" aria-label="Titre du clip"><small style="color:var(--muted)">${i === 0 ? '<b style="color:var(--blood)">★ En avant sur l’accueil</b> · ' : ''}youtube.com/watch?v=${esc(cl.id)}</small></div>
+            <div class="row-actions"><button class="btn btn--icon btn--sm btn--danger" type="button" data-clrm="${i}" aria-label="Supprimer">${I('trash')}</button></div></div>`).join('')}</div>
+          <div class="url-row"><input class="input" placeholder="Lien YouTube du clip" data-clurl><input class="input" placeholder="Titre" data-clname><button class="btn" type="button" data-cladd>${I('plus')} Ajouter</button></div></div>${saveBar('clips', 'Enregistrer les clips')}</section>
 
-        <section class="panel"><div class="panel-head"><div><h2>Freestyle sunday</h2><p>Les visuels qui renvoient vers Instagram</p></div></div><div class="panel-body">
-          <div class="gallery" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr))">${D.freestyles.map((f, i) => `<div><div class="gimg"><img src="${esc(f.image)}" alt=""><div class="tools">${i ? `<button type="button" data-fsmv="${i}" data-d="-1" title="Avancer">${I('left')}</button>` : ''}${i < D.freestyles.length - 1 ? `<button type="button" data-fsmv="${i}" data-d="1" title="Reculer">${I('right')}</button>` : ''}<button class="del" type="button" data-fsrm="${i}" title="Supprimer">${I('trash')}</button></div></div>
+        <section class="panel"><div class="panel-head"><div><h2>Freestyle sunday</h2><p>Les visuels qui renvoient vers Instagram. Glisse avec ✥ pour changer l’ordre.</p></div></div><div class="panel-body">
+          <div class="gallery fs-grid" data-fssort>${dr.fs.map((f, i) => `<div class="sort-item fs-item" data-idx="${i}"><div class="gimg"><img src="${esc(f.image)}" alt="">${GRIP}<div class="tools"><button type="button" class="del" data-fsrm="${i}" title="Retirer">${I('trash')}</button></div></div>
             <input class="input" style="margin-top:6px;font-size:12px;min-height:32px" value="${esc(f.url)}" data-fsurl="${i}" aria-label="Lien Instagram"></div>`).join('')}</div>
-          <div class="panel" style="padding:14px"><b>Ajouter un freestyle</b><div data-fsnew style="margin-top:10px"></div><div class="url-row"><input class="input" placeholder="Lien du reel Instagram" data-fslink><button class="btn btn--primary" type="button" data-fsadd>Ajouter</button></div></div></div></section>
+          <div class="panel" style="padding:14px;margin-top:14px"><b>Ajouter un freestyle</b><div class="fs-add"><div data-fsnew></div><div class="stack" style="gap:8px"><input class="input" placeholder="Lien du reel Instagram" data-fslink><button class="btn" type="button" data-fsadd>${I('plus')} Ajouter le freestyle</button></div></div></div></div>${saveBar('fs', 'Enregistrer les freestyles')}</section>
 
-        <section class="panel"><div class="panel-head"><h2>Discographie</h2><button class="btn btn--sm" type="button" data-alnew>${I('plus')} Ajouter un projet</button></div><div class="panel-body list-edit">
-          ${D.albums.map((a, i) => `<div class="list-item"><img src="${esc(a.cover)}" alt=""><div><b>${esc(a.title)}</b><br><small style="color:var(--muted)">${esc(a.artist)}${a.year ? ' — ' + esc(a.year) : ''}</small></div><div class="row-actions"><button class="btn btn--sm" type="button" data-aledit="${i}">Modifier</button><button class="btn btn--icon btn--sm btn--danger" type="button" data-alrm="${i}" aria-label="Supprimer">${I('trash')}</button></div></div>`).join('')}
-          <div data-aleditor></div></div></section>
+        <section class="panel"><div class="panel-head"><div><h2>Discographie</h2><p>Glisse avec ✥ pour changer l’ordre des projets.</p></div><button class="btn btn--sm" type="button" data-alnew>${I('plus')} Ajouter un projet</button></div><div class="panel-body list-edit" data-alsort>
+          ${dr.al.map((a, i) => `<div class="list-item sort-item" data-idx="${i}">${GRIP}<img src="${esc(a.cover)}" alt=""><div><b>${esc(a.title)}</b><br><small style="color:var(--muted)">${esc(a.artist)}${a.year ? ' — ' + esc(a.year) : ''}</small></div><div class="row-actions"><button class="btn btn--sm" type="button" data-aledit="${i}">Modifier</button><button class="btn btn--icon btn--sm btn--danger" type="button" data-alrm="${i}" aria-label="Supprimer">${I('trash')}</button></div></div>`).join('')}
+          </div><div class="panel-body" style="padding-top:0"><div data-aleditor></div></div>${saveBar('al', 'Enregistrer l’ordre')}</section>
 
-        <section class="panel"><div class="panel-head"><h2>Dates de concert</h2></div><div class="panel-body">
+        <section class="panel"><div class="panel-head"><div><h2>Dates de concert</h2><p>Rangées automatiquement par date. Chaque changement est enregistré tout de suite.</p></div></div><div class="panel-body">
           <div class="table-wrap"><table class="t matrix"><thead><tr><th>Date</th><th>Événement</th><th>Lieu</th><th>Ville</th><th>Lien billets</th><th></th></tr></thead><tbody>
           ${[...D.events].sort((a, b) => b.date.localeCompare(a.date)).map((e) => `<tr><td><input class="input" type="date" value="${esc(e.date)}" data-ev="${e.id}" data-f="date" style="width:150px"></td><td><input class="input" value="${esc(e.title)}" data-ev="${e.id}" data-f="title" style="min-width:220px"></td><td><input class="input" value="${esc(e.venue)}" data-ev="${e.id}" data-f="venue"></td><td><input class="input" value="${esc(e.city)}" data-ev="${e.id}" data-f="city" style="width:130px"></td><td><input class="input" value="${esc(e.url)}" data-ev="${e.id}" data-f="url"></td><td><button class="btn btn--icon btn--sm btn--danger" type="button" data-evrm="${e.id}" aria-label="Supprimer">${I('trash')}</button></td></tr>`).join('')}</tbody></table></div>
           <button class="btn" type="button" data-evadd style="margin-top:12px">${I('plus')} Ajouter une date</button></div></section></div>`;
 
       let fsImg = '';
       imgPicker($('[data-fsnew]', c), '', (u) => (fsImg = u), { max: 900 });
-      $$('[data-cltitle]', c).forEach((i) => i.addEventListener('change', () => { D.site.clips[+i.dataset.cltitle].title = i.value; save('Clip renommé'); }));
-      $$('[data-clup]', c).forEach((b) => b.addEventListener('click', () => { const i = +b.dataset.clup; const a = D.site.clips; [a[i - 1], a[i]] = [a[i], a[i - 1]]; save('Ordre des clips enregistré'); draw(); }));
-      $$('[data-clrm]', c).forEach((b) => b.addEventListener('click', async () => { if (await confirmBox('Retirer ce clip ?', 'Il ne sera plus affiché sur le site.', 'Retirer')) { D.site.clips.splice(+b.dataset.clrm, 1); save('Clip retiré'); draw(); } }));
+      const mark = (k) => { dirty[k] = true; const bar = $(`[data-sbar="${k}"]`, c); if (bar) bar.hidden = false; };
+      Object.keys(dirty).forEach((k) => { if (dirty[k]) mark(k); });
+      sortable($('[data-clsort]', c), '.sort-item', (ord) => { dr.clips = ord.map((i) => dr.clips[i]); mark('clips'); draw(); });
+      sortable($('[data-fssort]', c), '.sort-item', (ord) => { dr.fs = ord.map((i) => dr.fs[i]); mark('fs'); draw(); });
+      sortable($('[data-alsort]', c), '.sort-item', (ord) => { dr.al = ord.map((i) => dr.al[i]); mark('al'); draw(); });
+      $$('[data-cltitle]', c).forEach((i) => i.addEventListener('input', () => { dr.clips[+i.dataset.cltitle].title = i.value; mark('clips'); }));
+      $$('[data-clrm]', c).forEach((b) => b.addEventListener('click', () => { dr.clips.splice(+b.dataset.clrm, 1); mark('clips'); draw(); }));
+      $('[data-cladd]', c).addEventListener('click', () => { const id = ytId($('[data-clurl]', c).value.trim()); if (!id) return toast('Colle un lien YouTube valide.', true); dr.clips.push({ id, title: $('[data-clname]', c).value.trim() || 'Nouveau clip' }); mark('clips'); draw(); toast('Clip ajouté en bas de la liste — glisse-le où tu veux puis Enregistrer'); });
+      $$('[data-fsurl]', c).forEach((i) => i.addEventListener('input', () => { dr.fs[+i.dataset.fsurl].url = i.value.trim(); mark('fs'); }));
+      $$('[data-fsrm]', c).forEach((b) => b.addEventListener('click', () => { dr.fs.splice(+b.dataset.fsrm, 1); mark('fs'); draw(); }));
+      $('[data-fsadd]', c).addEventListener('click', () => { const url = $('[data-fslink]', c).value.trim(); if (!fsImg) return toast('Ajoute le visuel du freestyle.', true); if (!/instagram\.com/.test(url)) return toast('Colle le lien Instagram du freestyle.', true); dr.fs.unshift({ image: fsImg, url }); mark('fs'); draw(); });
+      const KEYS = { clips: ['Clips enregistrés', () => (D.site.clips = clone(dr.clips)), () => (dr.clips = clone(D.site.clips))], fs: ['Freestyles enregistrés', () => (D.freestyles = clone(dr.fs)), () => (dr.fs = clone(D.freestyles))], al: ['Ordre de la discographie enregistré', () => (D.albums = clone(dr.al)), () => (dr.al = clone(D.albums))] };
+      $$('[data-ssave]', c).forEach((b) => b.addEventListener('click', () => { const k = b.dataset.ssave; KEYS[k][1](); dirty[k] = false; save(KEYS[k][0]); draw(); }));
+      $$('[data-scancel]', c).forEach((b) => b.addEventListener('click', () => { const k = b.dataset.scancel; KEYS[k][2](); dirty[k] = false; draw(); }));
       $('[data-ovon]', c).addEventListener('change', (e) => { D.site.introVideoOn = e.target.checked; save(e.target.checked ? 'Vidéo d’ouverture activée' : 'Vidéo d’ouverture coupée'); draw(); });
       $('[data-ovsave]', c).addEventListener('click', () => { D.site.introVideo = $('[data-ovurl]', c).value.trim(); D.site.introVideoMode = $('[data-ovevery]', c).value; if (D.site.introVideo !== window.FUC_DEFAULTS.site.introVideo) D.site.introVideoPoster = ''; save('Vidéo d’ouverture enregistrée'); draw(); });
       $('[data-introon]', c).addEventListener('change', (e) => { D.site.autoplayClip = e.target.checked; save(e.target.checked ? 'Musique d’entrée activée' : 'Musique d’entrée coupée'); draw(); });
@@ -1777,14 +1866,9 @@
         const st = parseInt($('[data-introstart]', c).value, 10); D.site.introStart = st > 0 ? st : 0;
         D.site.autoplayClip = true; delete c.dataset.introPick; save('Musique d’entrée : ' + D.site.introTitle); draw();
       });
-      $('[data-cladd]', c).addEventListener('click', () => { const id = ytId($('[data-clurl]', c).value.trim()); if (!id) return toast('Colle un lien YouTube valide.', true); D.site.clips.unshift({ id, title: $('[data-clname]', c).value.trim() || 'Nouveau clip' }); save('Clip ajouté en tête'); draw(); });
-      $$('[data-fsurl]', c).forEach((i) => i.addEventListener('change', () => { D.freestyles[+i.dataset.fsurl].url = i.value.trim(); save('Lien enregistré'); }));
-      $$('[data-fsmv]', c).forEach((b) => b.addEventListener('click', () => { const i = +b.dataset.fsmv, j = i + +b.dataset.d; [D.freestyles[i], D.freestyles[j]] = [D.freestyles[j], D.freestyles[i]]; save(); draw(); }));
-      $$('[data-fsrm]', c).forEach((b) => b.addEventListener('click', async () => { if (await confirmBox('Retirer ce freestyle ?', 'Le visuel sera retiré du site.', 'Retirer')) { D.freestyles.splice(+b.dataset.fsrm, 1); save('Freestyle retiré'); draw(); } }));
-      $('[data-fsadd]', c).addEventListener('click', () => { const url = $('[data-fslink]', c).value.trim(); if (!fsImg) return toast('Ajoute le visuel du freestyle.', true); if (!/instagram\.com/.test(url)) return toast('Colle le lien Instagram du freestyle.', true); D.freestyles.unshift({ image: fsImg, url }); save('Freestyle ajouté'); draw(); });
 
       const alEditor = (i) => {
-        const isNew = i == null; const a = isNew ? { id: S.uid('a'), slug: '', title: '', year: '', artist: 'Fucstyle', cover: '', text: '', links: [] } : clone(D.albums[i]);
+        const isNew = i == null; const a = isNew ? { id: S.uid('a'), slug: '', title: '', year: '', artist: 'Fucstyle', cover: '', text: '', links: [] } : clone(dr.al[i]);
         const z = $('[data-aleditor]', c);
         z.innerHTML = `<div class="panel" style="padding:18px;margin-top:6px"><div class="stack"><b>${isNew ? 'Nouveau projet' : 'Modifier ' + esc(a.title)}</b>
           <div class="grid-3"><div class="field"><label for="alt">Titre</label><input id="alt" data-k="title"></div><div class="field"><label for="ala">Artiste</label><input id="ala" data-k="artist"></div><div class="field"><label for="aly">Année</label><input id="aly" data-k="year"></div></div>
@@ -1799,14 +1883,14 @@
           if (!a.title.trim() || !a.cover) return toast('Ajoute au moins un titre et une pochette.', true);
           a.links = $('[data-links]', z).value.split('\n').map((l) => l.split('|').map((x) => x.trim())).filter((x) => x[0] && x[1]).map(([label, url]) => ({ label, url }));
           a.slug = S.slugify(a.title);
-          if (isNew) D.albums.unshift(a); else D.albums[i] = a;
+          if (isNew) { D.albums.unshift(a); dr.al.unshift(clone(a)); } else { const k = D.albums.findIndex((x) => x.id === a.id); if (k >= 0) D.albums[k] = a; else D.albums.push(a); dr.al[i] = clone(a); }
           save('Projet enregistré'); draw();
         });
         z.scrollIntoView({ behavior: 'smooth', block: 'center' });
       };
       $('[data-alnew]', c).addEventListener('click', () => alEditor(null));
       $$('[data-aledit]', c).forEach((b) => b.addEventListener('click', () => alEditor(+b.dataset.aledit)));
-      $$('[data-alrm]', c).forEach((b) => b.addEventListener('click', async () => { if (await confirmBox('Supprimer ce projet ?', 'Il sera retiré de la discographie.', 'Supprimer')) { D.albums.splice(+b.dataset.alrm, 1); save('Projet supprimé'); draw(); } }));
+      $$('[data-alrm]', c).forEach((b) => b.addEventListener('click', async () => { if (await confirmBox('Supprimer ce projet ?', 'Il sera retiré de la discographie.', 'Supprimer')) { const id = dr.al[+b.dataset.alrm].id; dr.al.splice(+b.dataset.alrm, 1); D.albums = D.albums.filter((x) => x.id !== id); save('Projet supprimé'); draw(); } }));
 
       $$('[data-ev]', c).forEach((i) => i.addEventListener('change', () => { const e = D.events.find((x) => x.id === i.dataset.ev); e[i.dataset.f] = i.value; save('Date enregistrée'); }));
       $$('[data-evrm]', c).forEach((b) => b.addEventListener('click', async () => { if (await confirmBox('Supprimer cette date ?', 'Elle sera retirée de la page À propos.', 'Supprimer')) { D.events = D.events.filter((x) => x.id !== b.dataset.evrm); save('Date supprimée'); draw(); } }));

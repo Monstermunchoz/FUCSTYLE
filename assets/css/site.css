@@ -937,3 +937,8 @@ html.opening-on .music-btn, html.opening-on .announce { visibility: hidden; }
   .announce { padding: 8px 34px; font-size: clamp(10px, 3.35vw, 16px); }
   .announce button { right: 2px; width: 30px; height: 30px; font-size: 1.1rem; }
 }
+
+/* cadre des produits choisi dans la charte (couleurs libres) */
+.product-card { background: var(--card-frame, var(--frame)); color: var(--card-ink, var(--frame-ink)); }
+.product-card .cat { color: var(--card-muted, var(--frame-muted)); }
+.product-card .meta .badge { background: var(--card-ink, var(--frame-ink)); color: var(--card-frame, var(--frame)); }
