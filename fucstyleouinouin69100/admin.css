@@ -547,3 +547,12 @@ img:not([src]), img[src=""] { visibility: hidden; }
 .card-frames span { display: grid; gap: 6px; width: 76px; padding: 6px 6px 8px; box-shadow: 0 6px 10px -6px #0008; font-size: 11px; text-align: left; }
 .card-frames i { display: block; aspect-ratio: 1; background: #fff; }
 @media (max-width: 520px) { .card-frames { grid-template-columns: repeat(2, 1fr); } }
+.cut-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+.cut-grid figure { margin: 0; } .cut-grid figcaption { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+.cut-box { aspect-ratio: 1; background: #d3cdc2; border-radius: 8px; display: grid; place-items: center; overflow: hidden; position: relative; }
+.cut-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.cut-box span { position: absolute; font-weight: 700; color: #333; }
+.photo-bgs { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.photo-bgs button { width: 44px; height: 44px; border-radius: 50%; border: 2px solid #0002; cursor: pointer; }
+.photo-bgs button[aria-pressed="true"] { outline: 3px solid var(--blood); outline-offset: 2px; }
+.photo-bgs input[type=color] { width: 44px; height: 44px; padding: 2px; border-radius: 50%; border: 1px solid var(--line-strong); }

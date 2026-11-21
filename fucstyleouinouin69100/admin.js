@@ -656,11 +656,12 @@
       $('[data-gallery]', dlg).innerHTML = p.images.map((u, i) => `<div class="gimg"><img src="${esc(u)}" alt="">${i === 0 ? '<span class="main-badge">Principale</span>' : ''}
         <div class="tools">${i ? `<button type="button" data-mv="${i}" data-d="-1" title="Avancer">${I('left')}</button><button type="button" data-main="${i}" title="Mettre en principale">${I('star')}</button>` : ''}
         ${i < p.images.length - 1 ? `<button type="button" data-mv="${i}" data-d="1" title="Reculer">${I('right')}</button>` : ''}
-        <button type="button" data-adj="${i}" title="Régler le cadrage">${I('eye')}</button><button type="button" class="del" data-rmimg="${i}" title="Supprimer la photo">${I('trash')}</button></div></div>`).join('') || '<p class="hint" style="grid-column:1/-1;margin:0">Aucune photo pour l’instant.</p>';
+        <button type="button" data-adj="${i}" title="Régler le cadrage">${I('eye')}</button><button type="button" data-cut="${i}" title="Détourer le fond blanc">✂</button><button type="button" class="del" data-rmimg="${i}" title="Supprimer la photo">${I('trash')}</button></div></div>`).join('') || '<p class="hint" style="grid-column:1/-1;margin:0">Aucune photo pour l’instant.</p>';
     };
     drawGallery();
     $('[data-gallery]', dlg).addEventListener('click', (e) => {
       const adj = e.target.closest('[data-adj]'); if (adj) return adjustImage(p.images[+adj.dataset.adj], { onDone: preview });
+      const cut = e.target.closest('[data-cut]'); if (cut) { const i = +cut.dataset.cut; return cutDialog(p.images[i], (nu) => { p.images[i] = nu; mark(); drawGallery(); preview && preview(); toast('Photo détourée — enregistre la fiche'); }); }
       const mv = e.target.closest('[data-mv]'), mn = e.target.closest('[data-main]'), rm = e.target.closest('[data-rmimg]');
       if (mv) { const i = +mv.dataset.mv, j = i + +mv.dataset.d; [p.images[i], p.images[j]] = [p.images[j], p.images[i]]; }
       else if (mn) { const i = +mn.dataset.main; p.images.unshift(p.images.splice(i, 1)[0]); }
@@ -1047,6 +1048,51 @@
   };
 
   /* ================= RÉGLAGE D'UNE PHOTO (cadrage, zoom) ================= */
+  /* Détourer : rend transparent le fond blanc qui touche les bords de la photo */
+  async function loadForCanvas(url) {
+    let src = !/^(https?:|data:|blob:|\.\.\/)/.test(url) ? '../' + url : url;
+    if (/^https?:/.test(src) && !src.startsWith(location.origin)) {
+      const r = await fetch('../api/img?u=' + encodeURIComponent(src)); if (!r.ok) throw new Error('Photo inaccessible pour le détourage.');
+      src = URL.createObjectURL(await r.blob());
+    }
+    return new Promise((res, rej) => { const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => res(im); im.onerror = () => rej(new Error('Photo illisible.')); im.src = src; });
+  }
+  function cutWhite(im, tol) {
+    const k = Math.min(1, 1400 / Math.max(im.naturalWidth, im.naturalHeight));
+    const w = Math.round(im.naturalWidth * k), h = Math.round(im.naturalHeight * k);
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const ctx = cv.getContext('2d');
+    ctx.drawImage(im, 0, 0, w, h);
+    const id = ctx.getImageData(0, 0, w, h), d = id.data, seen = new Uint8Array(w * h), st = [];
+    const bg = (i) => { const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2]; return d[i * 4 + 3] < 10 || (Math.min(r, g, b) >= 255 - tol && Math.max(r, g, b) - Math.min(r, g, b) < 22); };
+    for (let x = 0; x < w; x++) st.push(x, (h - 1) * w + x);
+    for (let y = 0; y < h; y++) st.push(y * w, y * w + w - 1);
+    while (st.length) { const i = st.pop(); if (seen[i] || !bg(i)) continue; seen[i] = 1; const x = i % w; d[i * 4 + 3] = 0;
+      if (x > 0) st.push(i - 1); if (x < w - 1) st.push(i + 1); if (i >= w) st.push(i - w); if (i < w * (h - 1)) st.push(i + w); }
+    for (let i = 0; i < w * h; i++) { if (seen[i]) continue; const x = i % w; const n = (x > 0 && seen[i - 1]) + (x < w - 1 && seen[i + 1]) + (i >= w && seen[i - w]) + (i < w * (h - 1) && seen[i + w]); if (n) d[i * 4 + 3] = Math.round(d[i * 4 + 3] * (1 - n * 0.18)); }
+    ctx.putImageData(id, 0, 0); return cv.toDataURL('image/png');
+  }
+  function cutDialog(url, onDone) {
+    const dlg = document.createElement('dialog'); dlg.className = 'confirm'; dlg.style.width = 'min(720px, calc(100vw - 24px))';
+    dlg.innerHTML = `<h3 style="font-family:var(--f-display);font-weight:900;text-transform:uppercase;font-size:2rem">Détourer le fond blanc</h3>
+      <p>Enlève le fond blanc autour du produit : un T-shirt blanc ressort sur le fond gris de la boutique.</p>
+      <div class="cut-grid"><figure><figcaption>Avant</figcaption><div class="cut-box"><img data-before alt=""></div></figure><figure><figcaption>Après</figcaption><div class="cut-box"><img data-after alt=""><span data-wait>Détourage…</span></div></figure></div>
+      <div class="field"><label for="ctol">Force <b data-tolv>moyenne</b></label><input id="ctol" type="range" min="4" max="40" value="16" data-tol><span class="hint">Si des bouts du produit disparaissent, baisse la force. S’il reste du blanc autour, monte-la.</span></div>
+      <div class="actions" style="justify-content:flex-end"><button class="btn" type="button" data-x>Annuler</button><button class="btn btn--primary" type="button" data-ok disabled>Garder ce détourage</button></div>`;
+    document.body.append(dlg); dlg.showModal();
+    const close = () => { dlg.close(); dlg.remove(); };
+    $('[data-x]', dlg).addEventListener('click', close);
+    let im = null, out = '';
+    const run = () => { if (!im) return; out = cutWhite(im, +$('[data-tol]', dlg).value); $('[data-after]', dlg).src = out; $('[data-ok]', dlg).disabled = false; const v = +$('[data-tol]', dlg).value; $('[data-tolv]', dlg).textContent = v < 10 ? 'douce' : v < 24 ? 'moyenne' : 'forte'; };
+    loadForCanvas(url).then((x) => { im = x; $('[data-before]', dlg).src = x.src; $('[data-wait]', dlg).remove(); try { run(); } catch (e) { toast('Cette photo ne peut pas être détourée ici.', true); close(); } }).catch((e) => { toast(e.message, true); close(); });
+    $('[data-tol]', dlg).addEventListener('change', run);
+    $('[data-ok]', dlg).addEventListener('click', async () => {
+      $('[data-ok]', dlg).disabled = true; $('[data-ok]', dlg).textContent = 'Enregistrement…';
+      let nu = out;
+      if (REMOTE) { const r = await S.api('upload', { method: 'POST', body: { name: 'produit-detoure', dataUrl: out } }); if (r.ok && r.data && r.data.url) nu = r.data.url; }
+      D.imgMeta = D.imgMeta || {}; D.imgMeta[nu] = Object.assign({}, D.imgMeta[url] || {}, { cut: true, fit: 'contain' });
+      close(); onDone(nu);
+    });
+  }
   function adjustImage(url, opts) {
     opts = opts || {};
     if (!url) return;
@@ -1346,7 +1392,7 @@
   /* ================= TYPOS & COULEURS ================= */
   const FONTS_DISPLAY = ['Big Shoulders Stencil Display', 'Anton', 'Bebas Neue', 'Oswald', 'Archivo Black', 'Bungee', 'Rubik Mono One', 'Permanent Marker', 'Rock Salt', 'Black Ops One', 'Teko', 'Staatliches'];
   const FONTS_TEXT = ['Archivo', 'Inter', 'DM Sans', 'Space Grotesk', 'Work Sans', 'Manrope', 'Rubik', 'IBM Plex Sans', 'Space Mono'];
-  const DESIGN_DEFAULT = { display: 'Big Shoulders Stencil Display', text: 'Archivo', blood: '#b0001a', wall: '#b9b4aa', paper: '#ebe8e1', titleScale: 1, upper: true, cards: 'beige' };
+  const DESIGN_DEFAULT = { display: 'Big Shoulders Stencil Display', text: 'Archivo', blood: '#b0001a', wall: '#b9b4aa', paper: '#ebe8e1', titleScale: 1, upper: true, cards: 'beige', photoBg: '#d3cdc2' };
   views.design = (c) => {
     const ds = Object.assign({}, DESIGN_DEFAULT, D.design || {});
     const fam = (f) => 'family=' + f.replace(/ /g, '+') + ':wght@400;700;900';
@@ -1375,6 +1421,9 @@
           <div class="field"><label for="cp">Fond papier</label><input id="cp" type="color" data-col="paper" value="${esc(ds.paper)}"></div></div></section>
         <section class="panel"><div class="panel-head"><div><h2>Cadre des produits</h2><p>La couleur du cadre photo autour de chaque produit. Le noir fait ressortir les T-shirts et vinyles blancs.</p></div></div><div class="panel-body card-frames">
           ${[['beige', 'Beige', ds.paper, '#111'], ['noir', 'Noir', '#141414', '#fff'], ['blanc', 'Blanc', '#fff', '#111'], ['kraft', 'Kraft', '#b99a6b', '#1a1208'], ['rouge', 'Rouge', ds.blood, '#fff']].map(([k, l, bg, fg]) => `<button type="button" data-cards="${k}" aria-pressed="${(ds.cards || 'beige') === k}"><span style="background:${bg};color:${fg}"><i></i><b>T-shirt</b></span>${l}</button>`).join('')}</div></section>
+        <section class="panel"><div class="panel-head"><div><h2>Fond des photos produits</h2><p>Plus foncé = les produits blancs ressortent mieux. Pour un T-shirt blanc, utilise aussi le bouton ✂ « Détourer » sur sa photo.</p></div></div><div class="panel-body photo-bgs">
+          ${['#ffffff', '#e6e1d8', '#d3cdc2', '#bdb6aa', '#9d968a', '#2a2a2a'].map((col) => `<button type="button" data-pbg="${col}" aria-pressed="${(ds.photoBg || '#d3cdc2') === col}" style="background:${col}" aria-label="${col}"></button>`).join('')}
+          <input type="color" data-pbgc value="${esc(ds.photoBg || '#d3cdc2')}" aria-label="Autre couleur"></div></section>
         <section class="panel"><div class="panel-head"><h2>Titres</h2></div><div class="panel-body stack">
           <div class="field"><label for="ts">Taille des grands titres <b data-tsv>${Math.round(ds.titleScale * 100)} %</b></label><input id="ts" type="range" min="0.7" max="1.3" step="0.05" value="${ds.titleScale}" data-ts></div>
           <label class="switch"><input type="checkbox" data-up${ds.upper ? ' checked' : ''}> Titres en majuscules</label></div></section>
@@ -1391,6 +1440,8 @@
     const pick = (host, key) => host.addEventListener('click', (e) => { const b = e.target.closest('[data-font]'); if (!b) return; ds[key] = b.dataset.font; $$('[data-font]', host).forEach((x) => x.setAttribute('aria-pressed', x === b)); paint(); });
     pick($('[data-fd]', c), 'display'); pick($('[data-ft]', c), 'text');
     $$('[data-col]', c).forEach((i) => i.addEventListener('input', () => { ds[i.dataset.col] = i.value; paint(); }));
+    $$('[data-pbg]', c).forEach((b) => b.addEventListener('click', () => { ds.photoBg = b.dataset.pbg; $('[data-pbgc]', c).value = ds.photoBg; $$('[data-pbg]', c).forEach((x) => x.setAttribute('aria-pressed', x === b)); }));
+    $('[data-pbgc]', c).addEventListener('input', (e) => { ds.photoBg = e.target.value; $$('[data-pbg]', c).forEach((x) => x.setAttribute('aria-pressed', 'false')); });
     $$('[data-cards]', c).forEach((b) => b.addEventListener('click', () => { ds.cards = b.dataset.cards; $$('[data-cards]', c).forEach((x) => x.setAttribute('aria-pressed', x === b)); paint(); }));
     $('[data-ts]', c).addEventListener('input', (e) => { ds.titleScale = +e.target.value; $('[data-tsv]', c).textContent = Math.round(ds.titleScale * 100) + ' %'; paint(); });
     $('[data-up]', c).addEventListener('change', (e) => { ds.upper = e.target.checked; paint(); });

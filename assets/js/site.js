@@ -160,7 +160,7 @@
       <span class="price-tag${pr.was ? ' is-sale' : ''}">${pr.was ? `<s>${short(pr.was)}</s>` : ''}${short(pr.price)}</span>
       ${pr.label ? `<span class="sale-burst">${esc(pr.label)}</span>` : ''}
       ${out ? '<span class="stamp">Rupture</span>' : ''}
-      <img src="${esc(p.images[0])}" alt="${esc(p.name)}" loading="lazy"${S.imgStyle(D, p.images[0])}>
+      <span class="ph"><img src="${esc(p.images[0])}" alt="${esc(p.name)}" loading="lazy"${S.imgStyle(D, p.images[0])}></span>
       <div class="meta">${p.badge ? `<span class="badge">${esc(p.badge)}</span>` : ''}<h3>${esc(p.name)}</h3>${cardSub(p, out)}</div>
     </a>`;
   }
@@ -369,7 +369,7 @@
       const avail = (s, c) => p.variants.some((v) => (!s || v.size === s) && (!c || v.color === c) && (v.stock > 0 || p.preorder));
 
       root.innerHTML = `<div class="pdp">
-        <div class="pdp-gallery"><div class="poster" style="--r:-.8deg">${S.priceOf(D, p).label ? `<span class="sale-burst">${esc(S.priceOf(D, p).label)}</span>` : ''}<img data-main src="${esc(p.images[0])}" alt="${esc(p.name)}"${S.imgStyle(D, p.images[0])}></div>
+        <div class="pdp-gallery"><div class="poster" style="--r:-.8deg">${S.priceOf(D, p).label ? `<span class="sale-burst">${esc(S.priceOf(D, p).label)}</span>` : ''}<span class="ph"><img data-main src="${esc(p.images[0])}" alt="${esc(p.name)}"${S.imgStyle(D, p.images[0])}></span></div>
           ${p.images.length > 1 ? `<div class="thumbs">${p.images.map((u, i) => `<button type="button" data-img="${i}" aria-current="${i === 0}" aria-label="Photo ${i + 1}"><img src="${esc(u)}" alt=""></button>`).join('')}</div>` : ''}</div>
         <div class="pdp-info">
           <p class="muted" style="margin:0 0 10px"><a href="boutique.html">Shop</a> / ${esc(p.category)}</p>
@@ -388,7 +388,7 @@
         </div></div>`;
 
       const main = $('[data-main]', root);
-      $$('[data-img]', root).forEach((b) => b.addEventListener('click', () => { img = +b.dataset.img; main.src = p.images[img]; $$('[data-img]', root).forEach((x) => x.setAttribute('aria-current', x === b)); }));
+      $$('[data-img]', root).forEach((b) => b.addEventListener('click', () => { img = +b.dataset.img; main.src = p.images[img]; const mm = (D.imgMeta || {})[p.images[img]]; if (mm && mm.cut) main.dataset.cut = '1'; else delete main.dataset.cut; $$('[data-img]', root).forEach((x) => x.setAttribute('aria-current', x === b)); }));
       const qty = $('[data-qty]', root);
       $$('[data-qd]', root).forEach((b) => b.addEventListener('click', () => { qty.value = Math.max(1, (+qty.value || 1) + +b.dataset.qd); }));
       const add = $('[data-add]', root), stockEl = $('[data-stock]', root);
@@ -658,6 +658,7 @@
     if (ds.titleScale && ds.titleScale !== 1) r.setProperty('--title-scale', ds.titleScale);
     if (ds.upper === false) document.documentElement.classList.add('no-upper');
     if (ds.cards) document.documentElement.dataset.cards = ds.cards;
+    if (ds.photoBg) r.setProperty('--photo-bg', ds.photoBg);
   }
 
   /* ---------- Blocs ajoutés depuis le tableau de bord ---------- */
@@ -733,6 +734,7 @@
     $$('img', root.nodeType === 1 ? root : document).forEach((im) => {
       const m = meta[im.getAttribute('src')]; if (!m || im.dataset.framed) return;
       im.dataset.framed = '1';
+      if (m.cut) im.dataset.cut = '1';
       im.style.objectPosition = `${+m.x || 50}% ${+m.y || 50}%`;
       if (m.fit === 'contain') im.style.objectFit = 'contain';
       if (m.z > 1) {

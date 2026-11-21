@@ -188,7 +188,7 @@
     imgStyle(d, url) {
       const m = Store.imgMeta(d, url);
       if (!m) return '';
-      return ` style="object-position:${+m.x || 50}% ${+m.y || 50}%;${m.fit === 'contain' ? 'object-fit:contain;' : ''}${m.z > 1 ? `transform:scale(${m.z});transform-origin:${m.x}% ${m.y}%;` : ''}"${m.z > 1 ? ' data-zoom' : ''}`;
+      return ` style="object-position:${+m.x || 50}% ${+m.y || 50}%;${m.fit === 'contain' ? 'object-fit:contain;' : ''}${m.z > 1 ? `transform:scale(${m.z});transform-origin:${m.x}% ${m.y}%;` : ''}"${m.z > 1 ? ' data-zoom' : ''}${m.cut ? ' data-cut="1"' : ''}`;
     },
 
     /* ---------- outils ---------- */

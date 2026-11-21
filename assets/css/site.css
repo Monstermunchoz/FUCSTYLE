@@ -827,3 +827,10 @@ html.is-loading main { opacity: 0; } main { transition: opacity .2s; }
 .footer-credit { margin: 18px 0 0; text-align: center; font-size: .82rem; letter-spacing: .04em; color: rgba(255,255,255,.55); }
 .footer-credit a { color: inherit; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,.25); }
 .footer-credit a:hover { color: #fff; }
+
+/* photos produits : fond assombri pour que les produits blancs se voient.
+   Les photos au fond blanc sont teintées (multiply) ; les photos détourées gardent le produit blanc sur le fond gris. */
+.ph { display: block; position: relative; overflow: hidden; background: var(--photo-bg, #d3cdc2); isolation: isolate; }
+.ph img { mix-blend-mode: multiply; background: transparent !important; }
+.ph img[data-cut] { mix-blend-mode: normal; }
+.product-card.is-out .ph img { mix-blend-mode: multiply; }
