@@ -37,7 +37,9 @@
     header.innerHTML = `<div class="wrap">
       <a class="brand" href="index.html"><img src="${esc(site.logo)}" alt="Fucstyle — accueil"></a>
       <nav class="nav" id="nav" aria-label="Navigation principale">
-        ${NAV.map(([h, l, k]) => `<a href="${h}"${(page === k || (page === 'product' && k === 'shop') || (page === 'article' && k === 'magazine')) ? ' aria-current="page"' : ''}>${l}</a>`).join('')}
+        <div class="nav-top"><a class="nav-brand" href="index.html"><img src="${esc(site.logo)}" alt="Fucstyle — accueil"></a><button class="nav-close" type="button" aria-label="Fermer le menu">${ICON.close}</button></div>
+        <div class="nav-links">${NAV.map(([h, l, k]) => `<a href="${h}"${(page === k || (page === 'product' && k === 'shop') || (page === 'article' && k === 'magazine')) ? ' aria-current="page"' : ''}>${l}</a>`).join('')}</div>
+        <div class="nav-socials">${Object.entries(site.socials).filter(([, u]) => u).map(([k, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${ICON[k] || ''}<span>${NAMES[k] || k}</span></a>`).join('')}</div>
       </nav>
       <button class="cart-btn" type="button" data-open-cart aria-label="Ouvrir le panier"><span class="cart-word">Panier</span><span class="cart-count" data-cart-count>0</span></button>
       <button class="menu-btn" type="button" aria-controls="nav" aria-expanded="false" aria-label="Menu">${ICON.menu}</button>
@@ -97,7 +99,11 @@
     const toast = document.createElement('div'); toast.className = 'toast'; toast.setAttribute('role', 'status'); document.body.append(toast);
 
     const menuBtn = $('.menu-btn'); const nav = $('#nav');
-    menuBtn.addEventListener('click', () => { const o = nav.classList.toggle('open'); menuBtn.setAttribute('aria-expanded', o); document.body.style.overflow = o ? 'hidden' : ''; });
+    const setMenu = (o) => { nav.classList.toggle('open', o); menuBtn.setAttribute('aria-expanded', o); document.body.style.overflow = o ? 'hidden' : ''; document.body.classList.toggle('menu-open', o); };
+    menuBtn.addEventListener('click', () => setMenu(!nav.classList.contains('open')));
+    $('.nav-close', nav).addEventListener('click', () => { setMenu(false); menuBtn.focus(); });
+    $$('.nav-links a', nav).forEach((a) => a.addEventListener('click', () => setMenu(false)));
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && nav.classList.contains('open')) setMenu(false); });
 
     document.addEventListener('click', (e) => {
       if (e.target.closest('[data-open-cart]')) openCart();
