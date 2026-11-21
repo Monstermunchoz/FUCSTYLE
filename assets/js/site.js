@@ -33,6 +33,7 @@
 
   function renderChrome() {
     const header = document.createElement('header');
+    openingVideo();
     header.className = 'site-header';
     header.innerHTML = `<div class="wrap">
       <a class="brand" href="index.html"><img src="${esc(site.logo)}" alt="Fucstyle — accueil"></a>
@@ -236,6 +237,39 @@
      Les navigateurs bloquent parfois le son automatique : dans ce cas la musique
      démarre au premier clic / toucher du visiteur. Bouton vinyle pour couper. */
   let music = null;
+  /* ---------- Vidéo d'ouverture en pop-up : elle passe d'abord, puis le site et la musique démarrent ---------- */
+  let introDone = true; const introWait = [];
+  function afterIntro(fn) { if (introDone) fn(); else introWait.push(fn); }
+  function openingVideo() {
+    if (!site.introVideoOn || !site.introVideo || window.__FUC_PREVIEW || /fucstyleouinouin69100/.test(location.pathname)) return;
+    const key = 'fucstyle:intro-seen';
+    try { if (site.introVideoEvery !== 'always' && sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch (e) {}
+    introDone = false;
+    const ov = document.createElement('div'); ov.className = 'opening'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', 'Vidéo d’ouverture');
+    ov.innerHTML = `<video playsinline preload="auto"${site.introVideoPoster ? ` poster="${esc(site.introVideoPoster)}"` : ''}><source src="${esc(site.introVideo)}" type="video/mp4"></video>
+      <button class="opening-sound" type="button" hidden>🔊 Activer le son</button>
+      <button class="opening-skip" type="button">Entrer sur le site ›</button>
+      <div class="opening-bar"><i></i></div>`;
+    document.body.append(ov); document.documentElement.classList.add('opening-on');
+    const v = $('video', ov), snd = $('.opening-sound', ov), bar = $('.opening-bar i', ov);
+    let closed = false;
+    const close = () => {
+      if (closed) return; closed = true; ov.classList.add('out'); document.documentElement.classList.remove('opening-on');
+      setTimeout(() => { v.pause(); ov.remove(); }, 650);
+      introDone = true; introWait.splice(0).forEach((fn) => fn());
+    };
+    v.addEventListener('ended', close);
+    v.addEventListener('error', close);
+    v.addEventListener('timeupdate', () => { if (v.duration) bar.style.width = (v.currentTime / v.duration * 100) + '%'; });
+    $('.opening-skip', ov).addEventListener('click', close);
+    snd.addEventListener('click', () => { v.muted = false; v.volume = 1; v.play(); snd.hidden = true; });
+    document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', esc); } });
+    // d'abord avec le son ; si le navigateur refuse, en muet avec le bouton « Activer le son »
+    v.muted = false;
+    v.play().catch(() => { v.muted = true; snd.hidden = false; v.play().catch(() => { snd.hidden = false; }); });
+    setTimeout(() => { if (!closed && v.currentTime === 0 && v.paused) close(); }, 9000); // vidéo bloquée : on n'empêche jamais l'accès au site
+  }
+
   function introMusic(id, title, start) {
     const box = document.createElement('div');
     box.className = 'music-btn';
@@ -340,7 +374,7 @@
     home() {
       const v = $('[data-hero-video]');
       v.src = site.heroVideo;
-      if (site.autoplayClip) { const c0 = (site.clips && site.clips[0]) || { id: site.clipYoutube, title: site.clipName }; introMusic(site.introTrack || c0.id, site.introTitle || c0.title, site.introStart); }
+      if (site.autoplayClip) { const c0 = (site.clips && site.clips[0]) || { id: site.clipYoutube, title: site.clipName }; afterIntro(() => introMusic(site.introTrack || c0.id, site.introTitle || c0.title, site.introStart)); }
       const t = esc(site.ticker); $('[data-ticker]').innerHTML = Array(8).fill(`<span>${t}</span><span aria-hidden="true">🩸</span>`).join('');
 
       $('[data-shop-title]').textContent = site.shopTitle;

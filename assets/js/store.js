@@ -264,6 +264,8 @@
     return { bannerBg: (p && p.bannerBg) || base[0], bannerFg: (p && p.bannerFg) || base[1], bannerDrop: (p && p.bannerDrop) || base[2] };
   };
   Store.fill = function (d) {
+    const ds = window.FUC_DEFAULTS.site || {}; d.site = d.site || {};
+    Object.keys(ds).forEach((k) => { if (d.site[k] === undefined) d.site[k] = JSON.parse(JSON.stringify(ds[k])); });
     const def = (window.FUC_DEFAULTS.promotions || []);
     (d.promotions || []).forEach((p) => { const o = def.find((x) => x.id === p.id); if (!o) return; if (!p.bannerText && o.bannerText) { p.bannerText = o.bannerText; if (o.name) p.name = o.name; } if (p.id === 'pr-25' && (p.bannerV || 0) < 2) { delete p.bannerStyle; Object.assign(p, { bannerBg: o.bannerBg, bannerFg: o.bannerFg, bannerDrop: o.bannerDrop, bannerV: 2 }); } });
     if (d.design && d.design.wall === '#b9b4aa') d.design.wall = '#cdc8be';

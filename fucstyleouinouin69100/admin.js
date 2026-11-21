@@ -1637,6 +1637,13 @@
       const curId = ytId(D.site.introTrack || '') || ((D.site.clips[0] && D.site.clips[0].id) || '');
       c.innerHTML = head('Musique & scène', 'Musique d’entrée, clips, freestyles, discographie et dates de concert.')
         + `<div class="stack">
+        <section class="panel"><div class="panel-head"><div><h2>Vidéo d’ouverture (pop-up)</h2><p>Elle passe en plein écran dès qu’on arrive sur le site. À la fin (ou si on appuie sur « Entrer »), elle disparaît, le site s’affiche et la musique démarre.</p></div>
+          <label class="switch"><input type="checkbox" data-ovon${D.site.introVideoOn ? ' checked' : ''}> ${D.site.introVideoOn ? 'Activée' : 'Coupée'}</label></div>
+          <div class="panel-body stack">
+            ${D.site.introVideo ? `<video src="${esc(/^(https?:|data:|blob:)/.test(D.site.introVideo) ? D.site.introVideo : '../' + D.site.introVideo)}" controls playsinline preload="metadata" style="width:100%;max-width:520px;border-radius:8px;background:#000"></video>` : ''}
+            <div class="grid-2"><div class="field"><label for="ovu">Lien de la vidéo (MP4)</label><input id="ovu" data-ovurl value="${esc(D.site.introVideo || '')}" placeholder="https://…/video.mp4"><span class="hint">Pour une nouvelle vidéo, envoie-la à 404 Agency : on la compresse pour qu’elle charge vite.</span></div>
+              <div class="field"><label for="ove">Quand la montrer</label><select id="ove" data-ovevery><option value="session"${D.site.introVideoEvery !== 'always' ? ' selected' : ''}>Une fois par visite</option><option value="always"${D.site.introVideoEvery === 'always' ? ' selected' : ''}>À chaque page d’accueil</option></select></div></div>
+            <button class="btn btn--primary" type="button" data-ovsave style="width:max-content">Enregistrer la vidéo</button></div></section>
         <section class="panel intro-panel"><div class="panel-head"><div><h2>Musique d’entrée du site</h2><p>Le morceau qui se lance quand on arrive sur l’accueil, avec le vinyle qui tourne en bas de l’écran.</p></div>
           <label class="switch"><input type="checkbox" data-introon${D.site.autoplayClip ? ' checked' : ''}> ${D.site.autoplayClip ? 'Activée' : 'Coupée'}</label></div>
           <div class="panel-body stack"${D.site.autoplayClip ? '' : ' style="opacity:.5"'}>
@@ -1671,6 +1678,8 @@
       $$('[data-cltitle]', c).forEach((i) => i.addEventListener('change', () => { D.site.clips[+i.dataset.cltitle].title = i.value; save('Clip renommé'); }));
       $$('[data-clup]', c).forEach((b) => b.addEventListener('click', () => { const i = +b.dataset.clup; const a = D.site.clips; [a[i - 1], a[i]] = [a[i], a[i - 1]]; save('Ordre des clips enregistré'); draw(); }));
       $$('[data-clrm]', c).forEach((b) => b.addEventListener('click', async () => { if (await confirmBox('Retirer ce clip ?', 'Il ne sera plus affiché sur le site.', 'Retirer')) { D.site.clips.splice(+b.dataset.clrm, 1); save('Clip retiré'); draw(); } }));
+      $('[data-ovon]', c).addEventListener('change', (e) => { D.site.introVideoOn = e.target.checked; save(e.target.checked ? 'Vidéo d’ouverture activée' : 'Vidéo d’ouverture coupée'); draw(); });
+      $('[data-ovsave]', c).addEventListener('click', () => { D.site.introVideo = $('[data-ovurl]', c).value.trim(); D.site.introVideoEvery = $('[data-ovevery]', c).value; if (D.site.introVideo !== window.FUC_DEFAULTS.site.introVideo) D.site.introVideoPoster = ''; save('Vidéo d’ouverture enregistrée'); draw(); });
       $('[data-introon]', c).addEventListener('change', (e) => { D.site.autoplayClip = e.target.checked; save(e.target.checked ? 'Musique d’entrée activée' : 'Musique d’entrée coupée'); draw(); });
       $$('[data-intro]', c).forEach((b) => b.addEventListener('click', () => { $$('[data-intro]', c).forEach((x) => x.setAttribute('aria-pressed', x === b)); $('[data-introurl]', c).value = ''; $('[data-introtitle]', c).value = b.dataset.introname; c.dataset.introPick = b.dataset.intro; }));
       $('[data-introsave]', c).addEventListener('click', () => {
