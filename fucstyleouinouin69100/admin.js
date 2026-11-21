@@ -818,7 +818,9 @@
     if (!r.scope || r.scope === 'all') return 'Tout le site';
     if (r.scope === 'category') return 'Catégorie : ' + r.target;
     if (r.scope === 'type') return 'Type : ' + r.target;
-    const p = D.products.find((x) => x.id === r.target); return 'Produit : ' + (p ? p.name : '—');
+    const ids = Array.isArray(r.target) ? r.target : [r.target];
+    if (ids.length > 1) return ids.length + ' produits';
+    const p = D.products.find((x) => x.id === ids[0]); return 'Produit : ' + (p ? p.name : '—');
   };
   const valueLabel = (r) => (r.type === 'percent' ? '−' + r.value + ' %' : '−' + money(r.value));
   const ruleState = (r) => (!r.active ? ['cache', 'Désactivée'] : S.live(r) ? ['ok', 'En cours'] : (r.start && Date.now() < +new Date(r.start) ? ['low', 'Programmée'] : ['cache', 'Terminée']));
@@ -841,39 +843,98 @@
     const isCode = kind === 'code';
     const list = isCode ? D.promos : (D.promotions = D.promotions || []);
     const r = idx != null ? clone(list[idx]) : (isCode ? { code: '', type: 'percent', value: 10, scope: 'all', target: '', active: true, uses: 0, note: '', start: '', end: '' } : { id: S.uid('pr'), name: '', type: 'percent', value: 20, scope: 'all', target: '', active: true, start: '', end: '', banner: true, bannerText: '' });
-    const dlg = document.createElement('dialog'); dlg.className = 'confirm'; dlg.style.width = 'min(560px, calc(100vw - 32px))';
-    dlg.innerHTML = `<h3 style="font-family:var(--f-display);font-weight:900;text-transform:uppercase;font-size:2rem">${idx != null ? 'Modifier' : 'Nouvelle'} ${isCode ? 'code promo' : 'promotion'}</h3>
-      <form class="stack" style="gap:14px">
-        ${isCode ? `<div class="field"><label for="rc">Code à saisir</label><input id="rc" name="code" value="${esc(r.code)}" style="text-transform:uppercase" placeholder="Ex. DIMANCHE15" required></div>`
-          : `<div class="field"><label for="rn">Nom de la promo</label><input id="rn" name="name" value="${esc(r.name)}" placeholder="Ex. Black Friday" required></div>`}
-        <div class="grid-2"><div class="field"><label for="rt">Remise</label><select id="rt" name="type"><option value="percent"${r.type === 'percent' ? ' selected' : ''}>Pourcentage (%)</option><option value="fixed"${r.type === 'fixed' ? ' selected' : ''}>Montant (€)</option></select></div>
-          <div class="field"><label for="rv">Valeur</label><input id="rv" name="value" inputmode="decimal" value="${esc(r.value)}" required></div></div>
-        ${scopeFields(r)}
-        <div class="grid-2"><div class="field"><label for="rs">Début (facultatif)</label><input id="rs" type="date" name="start" value="${esc(r.start || '')}"></div><div class="field"><label for="re">Fin (facultatif)</label><input id="re" type="date" name="end" value="${esc(r.end || '')}"></div></div>
-        ${isCode ? `<div class="field"><label for="rno">Note</label><input id="rno" name="note" value="${esc(r.note || '')}" placeholder="Pour qui, pour quoi"></div>`
-          : `<label class="switch"><input type="checkbox" name="banner"${r.banner ? ' checked' : ''}> Annoncer en bandeau rouge en haut du site (promo « tout le site »)</label>
-             <div class="field"><label for="rbt">Texte du bandeau</label><input id="rbt" name="bannerText" value="${esc(r.bannerText || '')}" placeholder="Ex. −25 % sur tout le site jusqu’à dimanche"></div>`}
-        <label class="switch"><input type="checkbox" name="active"${r.active ? ' checked' : ''}> Active</label>
-        <div class="actions" style="justify-content:flex-end"><button class="btn" type="button" data-x>Annuler</button><button class="btn btn--primary" type="submit">Enregistrer</button></div></form>`;
+    if (r.scope === 'product') { r.scope = 'products'; r.target = [r.target]; }
+    if (r.scope === 'products' && !Array.isArray(r.target)) r.target = r.target ? [r.target] : [];
+    const cats = [...new Set(D.products.map((p) => p.category))], types = [...new Set(D.products.map((p) => p.type).filter(Boolean))];
+    const ex = D.products.find((p) => p.status === 'publie') || D.products[0];
+    const SC = [['all', 'Tout le site', 'Tous les produits de la boutique'], ['category', 'Une catégorie', 'Musique, Merch, Collector…'], ['type', 'Un type', 'Vinyles, T-shirts, CD…'], ['products', 'Des produits', 'Choisis-les un par un']];
+    const dlg = document.createElement('dialog'); dlg.className = 'confirm rule-dlg';
+    dlg.innerHTML = `<form class="rule">
+      <div class="rule-head"><span class="rule-kind">${isCode ? 'Code promo' : 'Promotion automatique'}</span><h3 class="display">${idx != null ? 'Modifier' : 'Créer'} ${isCode ? 'un code' : 'une promo'}</h3>
+        ${isCode ? `<input class="rule-name rule-code" name="code" value="${esc(r.code)}" placeholder="DIMANCHE15" autocomplete="off" required aria-label="Code à saisir">`
+          : `<input class="rule-name" name="name" value="${esc(r.name)}" placeholder="Nom de la promo, ex. Black Friday" required aria-label="Nom de la promo">`}</div>
+
+      <section class="rule-sec"><h4>La remise</h4>
+        <div class="rule-val"><div class="seg rule-unit" role="group" aria-label="Type de remise"><button type="button" data-unit="percent" aria-pressed="${r.type === 'percent'}">%</button><button type="button" data-unit="fixed" aria-pressed="${r.type === 'fixed'}">€</button></div>
+          <div class="rule-num"><span>−</span><input name="value" inputmode="decimal" value="${esc(r.value)}" aria-label="Valeur de la remise"><b data-suffix>${r.type === 'percent' ? '%' : '€'}</b></div>
+          <div class="rule-ex" data-ex></div></div></section>
+
+      <section class="rule-sec"><h4>Sur quoi ?</h4>
+        <div class="rule-scopes">${SC.map(([k, t, sub]) => `<button type="button" class="rule-scope" data-scope="${k}" aria-pressed="${r.scope === k}"><b>${t}</b><small>${sub}</small></button>`).join('')}</div>
+        <div class="rule-target" data-t="category"><div class="chipset">${cats.map((x) => `<button type="button" data-cat="${esc(x)}" aria-pressed="${r.scope === 'category' && r.target === x}">${esc(x)}</button>`).join('')}</div></div>
+        <div class="rule-target" data-t="type"><div class="chipset">${types.map((x) => `<button type="button" data-typ="${esc(x)}" aria-pressed="${r.scope === 'type' && r.target === x}">${esc(x)}</button>`).join('')}</div></div>
+        <div class="rule-target" data-t="products">
+          <div class="rule-pbar"><input class="input" type="search" placeholder="Rechercher un produit" data-pq aria-label="Rechercher un produit"><button type="button" class="btn btn--sm" data-pall>Tout cocher</button><button type="button" class="btn btn--sm" data-pnone>Tout décocher</button></div>
+          <div class="rule-plist">${D.products.map((p) => `<label class="rule-p" data-pname="${esc(p.name.toLowerCase())}"><input type="checkbox" value="${p.id}"${r.scope === 'products' && r.target.includes(p.id) ? ' checked' : ''}><img src="${esc(p.images[0] || '')}" alt=""><span><b>${esc(p.name)}</b><small>${money(p.price)}</small></span></label>`).join('')}</div>
+          <p class="hint" data-pcount></p></div></section>
+
+      <section class="rule-sec"><h4>Quand ?</h4>
+        <div class="chipset rule-quick"><button type="button" data-q="none">Sans limite</button><button type="button" data-q="we">Ce week-end</button><button type="button" data-q="7">7 jours</button><button type="button" data-q="30">30 jours</button></div>
+        <div class="grid-2"><div class="field"><label for="rs">Début</label><input id="rs" type="date" name="start" value="${esc(r.start || '')}"></div><div class="field"><label for="re">Fin</label><input id="re" type="date" name="end" value="${esc(r.end || '')}"></div></div></section>
+
+      ${isCode ? `<section class="rule-sec"><h4>Note</h4><input class="input" name="note" value="${esc(r.note || '')}" placeholder="Pour qui, pour quoi (visible seulement par toi)"></section>`
+        : `<section class="rule-sec"><div class="rule-bannerrow"><h4>Bandeau en haut du site</h4><label class="switch"><input type="checkbox" name="banner"${r.banner ? ' checked' : ''}><span class="sr-only">Afficher le bandeau</span></label></div>
+          <div data-bannerbox><input class="input" name="bannerText" value="${esc(r.bannerText || '')}" placeholder="Texte du bandeau, ex. −25 % sur tout le site jusqu’à dimanche">
+          <div class="rule-banner-prev" data-bprev></div></div></section>`}
+
+      <div class="rule-foot"><label class="switch"><input type="checkbox" name="active"${r.active ? ' checked' : ''}> Active</label><span><button class="btn" type="button" data-x>Annuler</button> <button class="btn btn--primary" type="submit">Enregistrer</button></span></div>
+    </form>`;
     document.body.append(dlg); dlg.showModal();
-    const form = $('form', dlg); bindScope(form);
+    const form = $('form', dlg);
+    const val = () => +String(form.value.value).replace(',', '.') || 0;
+    const sync = () => {
+      $$('[data-t]', dlg).forEach((t) => (t.hidden = t.dataset.t !== r.scope));
+      $('[data-suffix]', dlg).textContent = r.type === 'percent' ? '%' : '€';
+      const pp = r.scope === 'products' ? D.products.find((p) => r.target.includes(p.id)) : r.scope === 'category' ? D.products.find((p) => p.category === r.target) : r.scope === 'type' ? D.products.find((p) => p.type === r.target) : ex;
+      const v = val();
+      $('[data-ex]', dlg).innerHTML = pp && v > 0 ? `Exemple : ${esc(pp.name)} <s>${money(pp.price)}</s> <b>${money(Math.max(0, r.type === 'percent' ? pp.price * (1 - v / 100) : pp.price - v))}</b>` : '';
+      if (r.scope === 'products') $('[data-pcount]', dlg).textContent = r.target.length + ' produit' + (r.target.length > 1 ? 's' : '') + ' choisi' + (r.target.length > 1 ? 's' : '');
+      const bp = $('[data-bprev]', dlg); if (bp) { $('[data-bannerbox]', dlg).hidden = !form.banner.checked; bp.textContent = form.bannerText.value || form.name.value || 'Ton message ici'; }
+    };
+    $$('[data-unit]', dlg).forEach((b) => b.addEventListener('click', () => { r.type = b.dataset.unit; $$('[data-unit]', dlg).forEach((x) => x.setAttribute('aria-pressed', x === b)); sync(); }));
+    $$('[data-scope]', dlg).forEach((b) => b.addEventListener('click', () => {
+      r.scope = b.dataset.scope; $$('[data-scope]', dlg).forEach((x) => x.setAttribute('aria-pressed', x === b));
+      r.target = r.scope === 'products' ? (Array.isArray(r.target) ? r.target : []) : r.scope === 'all' ? '' : ((r.scope === 'category' ? cats : types).includes(r.target) ? r.target : (r.scope === 'category' ? cats : types)[0]);
+      $$('[data-cat]', dlg).forEach((x) => x.setAttribute('aria-pressed', r.scope === 'category' && x.dataset.cat === r.target));
+      $$('[data-typ]', dlg).forEach((x) => x.setAttribute('aria-pressed', r.scope === 'type' && x.dataset.typ === r.target));
+      sync();
+    }));
+    $$('[data-cat]', dlg).forEach((b) => b.addEventListener('click', () => { r.target = b.dataset.cat; $$('[data-cat]', dlg).forEach((x) => x.setAttribute('aria-pressed', x === b)); sync(); }));
+    $$('[data-typ]', dlg).forEach((b) => b.addEventListener('click', () => { r.target = b.dataset.typ; $$('[data-typ]', dlg).forEach((x) => x.setAttribute('aria-pressed', x === b)); sync(); }));
+    const readP = () => { r.target = $$('.rule-p input:checked', dlg).map((i) => i.value); sync(); };
+    $$('.rule-p input', dlg).forEach((i) => i.addEventListener('change', readP));
+    $('[data-pall]', dlg).addEventListener('click', () => { $$('.rule-p:not([hidden]) input', dlg).forEach((i) => (i.checked = true)); readP(); });
+    $('[data-pnone]', dlg).addEventListener('click', () => { $$('.rule-p input', dlg).forEach((i) => (i.checked = false)); readP(); });
+    $('[data-pq]', dlg).addEventListener('input', (e) => { const q = e.target.value.toLowerCase(); $$('.rule-p', dlg).forEach((l) => (l.hidden = q && !l.dataset.pname.includes(q))); });
+    const iso = (d) => d.toISOString().slice(0, 10);
+    $$('[data-q]', dlg).forEach((b) => b.addEventListener('click', () => {
+      const t = new Date(), q = b.dataset.q;
+      if (q === 'none') { form.start.value = ''; form.end.value = ''; }
+      else if (q === 'we') { const sat = new Date(t); sat.setDate(t.getDate() + ((6 - t.getDay() + 7) % 7)); const sun = new Date(sat); sun.setDate(sat.getDate() + 1); form.start.value = iso(t.getDay() === 0 ? t : sat); form.end.value = iso(t.getDay() === 0 ? t : sun); }
+      else { const e = new Date(t); e.setDate(t.getDate() + +q - 1); form.start.value = iso(t); form.end.value = iso(e); }
+    }));
+    form.addEventListener('input', sync);
+    if (isCode) form.code.addEventListener('input', () => (form.code.value = form.code.value.toUpperCase().replace(/\s+/g, '')));
     $('[data-x]', dlg).addEventListener('click', () => { dlg.close(); dlg.remove(); });
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      const f = Object.fromEntries(new FormData(form));
-      const value = +String(f.value).replace(',', '.');
-      if (!(value > 0) || (f.type === 'percent' && value > 100)) return toast('Indique une remise valide (entre 1 et 100 % ou un montant).', true);
-      Object.assign(r, { type: f.type, value, start: f.start, end: f.end, active: !!f.active }, readScope(f));
+      const value = val();
+      if (!(value > 0) || (r.type === 'percent' && value > 90)) return toast(r.type === 'percent' ? 'Choisis une remise entre 1 et 90 %.' : 'Indique un montant de remise.', true);
+      if (r.scope === 'products' && !r.target.length) return toast('Coche au moins un produit.', true);
+      if ((r.scope === 'category' || r.scope === 'type') && !r.target) return toast('Choisis une ' + (r.scope === 'category' ? 'catégorie' : 'type') + '.', true);
+      if (form.start.value && form.end.value && form.end.value < form.start.value) return toast('La date de fin est avant la date de début.', true);
+      Object.assign(r, { value, start: form.start.value, end: form.end.value, active: form.active.checked });
       if (isCode) {
-        r.code = String(f.code || '').trim().toUpperCase().replace(/\s+/g, ''); r.note = f.note;
+        r.code = form.code.value.trim().toUpperCase(); r.note = form.note.value;
         if (!r.code) return toast('Indique le code.', true);
         if (D.promos.some((p, i) => p.code === r.code && i !== idx)) return toast('Ce code existe déjà.', true);
       } else {
-        r.name = String(f.name || '').trim() || valueLabel(r) + ' — ' + scopeLabel(r); r.banner = !!f.banner; r.bannerText = f.bannerText;
+        r.name = form.name.value.trim() || valueLabel(r) + ' — ' + scopeLabel(r); r.banner = form.banner.checked; r.bannerText = form.bannerText.value.trim();
       }
       if (idx != null) list[idx] = r; else list.unshift(r);
       save(isCode ? 'Code enregistré' : 'Promotion enregistrée'); dlg.close(); dlg.remove(); route();
     });
+    sync();
   }
 
   views.promos = (c) => {
@@ -882,7 +943,7 @@
       + `<div class="stack">
         <section class="panel"><div class="panel-head"><div><h2>Promotions automatiques</h2><p>Le prix barré et le badge s’affichent tout seuls sur le site. Si plusieurs promos touchent un produit, la plus forte gagne.</p></div></div>
           <div class="table-wrap">${P.length ? `<table class="t"><thead><tr><th>Promotion</th><th>Remise</th><th>Portée</th><th>Période</th><th>État</th><th>Active</th><th></th></tr></thead><tbody>
-          ${P.map((r, i) => { const st = ruleState(r); return `<tr data-edit="${i}"><td><b>${esc(r.name)}</b>${r.banner && (r.scope || 'all') === 'all' ? ' <span class="tag">bandeau</span>' : ''}</td><td><b>${valueLabel(r)}</b></td><td>${esc(scopeLabel(r))}</td><td>${r.start || r.end ? (r.start ? fmtDate(r.start) : '…') + ' → ' + (r.end ? fmtDate(r.end) : '…') : 'Sans limite'}</td><td>${pill(st[0], st[1])}</td>
+          ${P.map((r, i) => { const st = ruleState(r); return `<tr data-edit="${i}"><td><b>${esc(r.name)}</b>${r.banner ? ' <span class="tag">bandeau</span>' : ''}</td><td><b>${valueLabel(r)}</b></td><td>${esc(scopeLabel(r))}</td><td>${r.start || r.end ? (r.start ? fmtDate(r.start) : '…') + ' → ' + (r.end ? fmtDate(r.end) : '…') : 'Sans limite'}</td><td>${pill(st[0], st[1])}</td>
             <td><label class="switch" data-stop><input type="checkbox" data-pact="${i}"${r.active ? ' checked' : ''}><span class="sr-only">Active</span></label></td><td class="num"><button class="btn btn--sm btn--ghost btn--danger" data-prm="${i}" aria-label="Supprimer">${I('trash')}</button></td></tr>`; }).join('')}</tbody></table>`
           : '<div class="empty-state"><b>Aucune promotion</b>Crée une remise sur tout le site, une catégorie ou un produit.</div>'}</div></section>
         <section class="panel"><div class="panel-head"><div><h2>Codes promo</h2><p>Le client tape le code au moment de payer.</p></div></div>
@@ -1662,7 +1723,8 @@
   (async () => {
     let tok = null; try { tok = sessionStorage.getItem('fucstyle:token'); } catch (e) {}
     if (authed() && tok) { root.innerHTML = '<div class="login"><p>Chargement…</p></div>'; if (await loadRemote().catch(() => false)) { lastCount = D.orders.length; shell(); route(); } else logout(); }
-    else if (authed()) { shell(); route(); } else loginView();
+    else if (authed() && location.protocol === 'file:') { shell(); route(); }
+    else { try { sessionStorage.removeItem('fucstyle:admin'); } catch (e) {} loginView(); }
   })();
   new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach((n) => { if (n.nodeType === 1) S.typo(n); }))).observe(document.body, { childList: true, subtree: true });
   S.typo(document.body);

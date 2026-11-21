@@ -76,7 +76,7 @@
     });
 
     const sp = S.sitePromo(D);
-    const an = sp ? { active: true, text: sp.bannerText || (sp.name + ' — dans la limite des stocks'), url: 'boutique.html' } : site.announcement;
+    const an = sp ? { active: true, text: sp.bannerText || sp.name, url: 'boutique.html' } : site.announcement;
     if (an && an.active && an.text) {
       let seen = ''; try { seen = sessionStorage.getItem('fucstyle:announce'); } catch (e) {}
       if (seen !== an.text) {

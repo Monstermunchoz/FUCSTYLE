@@ -152,7 +152,7 @@
       if (!rule.scope || rule.scope === 'all') return true;
       if (rule.scope === 'category') return p.category === rule.target;
       if (rule.scope === 'type') return (p.type || '').toLowerCase() === String(rule.target || '').toLowerCase();
-      if (rule.scope === 'product') return p.id === rule.target;
+      if (rule.scope === 'product' || rule.scope === 'products') return Array.isArray(rule.target) ? rule.target.includes(p.id) : p.id === rule.target;
       return false;
     },
     live(rule) {
@@ -174,7 +174,7 @@
       const was = best ? base : (p.compareAt && p.compareAt > base ? p.compareAt : null);
       return { price, was, rule: best, label: best ? (best.type === 'percent' ? '−' + best.value + ' %' : '−' + Store.money(best.value)) : (was ? 'Promo' : '') };
     },
-    sitePromo(d) { return (d.promotions || []).filter(Store.live).find((r) => (r.scope || 'all') === 'all' && r.banner); },
+    sitePromo(d) { return (d.promotions || []).filter(Store.live).find((r) => r.banner); },
     codeDiscount(d, code, lines) {
       const elig = lines.filter((l) => Store.applies(code, l.product));
       const base = elig.reduce((s, l) => s + l.lineTotal, 0);

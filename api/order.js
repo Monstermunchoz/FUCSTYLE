@@ -4,7 +4,7 @@ import { redis, send, readBody, noDb, getSite, getList, setList, pushToAdmin } f
 
 const r2 = (n) => Math.round(n * 100) / 100;
 function live(r) { if (!r || !r.active) return false; const t = Date.now(); if (r.start && t < +new Date(r.start)) return false; if (r.end && t > +new Date(r.end + 'T23:59:59')) return false; return true; }
-function applies(r, p) { if (!r.scope || r.scope === 'all') return true; if (r.scope === 'category') return p.category === r.target; if (r.scope === 'type') return (p.type || '').toLowerCase() === String(r.target || '').toLowerCase(); if (r.scope === 'product') return p.id === r.target; return false; }
+function applies(r, p) { if (!r.scope || r.scope === 'all') return true; if (r.scope === 'category') return p.category === r.target; if (r.scope === 'type') return (p.type || '').toLowerCase() === String(r.target || '').toLowerCase(); if (r.scope === 'product' || r.scope === 'products') return Array.isArray(r.target) ? r.target.includes(p.id) : p.id === r.target; return false; }
 function priceOf(d, p) { let best = +p.price; (d.promotions || []).filter(live).forEach((r) => { if (!applies(r, p)) return; const np = r.type === 'percent' ? p.price * (1 - r.value / 100) : Math.max(0, p.price - r.value); if (np < best) best = np; }); return r2(best); }
 function zoneFor(d, country) { const zs = (d.shipping && d.shipping.zones) || []; return zs.find((z) => z.countries.includes(country)) || zs[0] || { price: 0, freeFrom: 0, name: '' }; }
 
