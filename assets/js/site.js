@@ -40,7 +40,6 @@
       <nav class="nav" id="nav" aria-label="Navigation principale">
         <div class="nav-top"><a class="nav-brand" href="index.html"><img src="${esc(site.logo)}" alt="Fucstyle — accueil"></a><button class="nav-close" type="button" aria-label="Fermer le menu">${ICON.close}</button></div>
         <div class="nav-links">${NAV.map(([h, l, k]) => `<a href="${h}"${(page === k || (page === 'product' && k === 'shop') || (page === 'article' && k === 'magazine')) ? ' aria-current="page"' : ''}>${l}</a>`).join('')}</div>
-        <button class="app-dl" type="button" data-appdl><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Télécharger l’appli Fucstyle</button>
         <div class="nav-socials">${Object.entries(site.socials).filter(([, u]) => u).sort(([a], [b]) => (b === 'instagram') - (a === 'instagram')).map(([k, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${ICON[k] || ''}<span>${NAMES[k] || k}</span></a>`).join('')}</div>
       </nav>
       <button class="cart-btn" type="button" data-open-cart aria-label="Ouvrir le panier"><span class="cart-word">Panier</span><span class="cart-count" data-cart-count>0</span></button>
@@ -67,7 +66,6 @@
       </div>
       <div class="footer-bottom"><span>© ${new Date().getFullYear()} Fucstyle — <a href="${esc(site.bercailUrl)}" target="_blank" rel="noopener">Bercail Records</a></span>
         <span><a href="cgv.html">CGV</a> · <a href="retours.html">Retours</a> · <a href="mentions-legales.html">Mentions légales</a> · <a href="confidentialite.html">Confidentialité</a></span></div>
-      <p class="footer-app"><button class="app-dl app-dl--foot" type="button" data-appdl><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Télécharger l’appli Fucstyle</button></p>
       <p class="footer-credit"><a href="${esc(window.FUC_DEFAULTS.site.creditUrl)}" target="_blank" rel="noopener">${esc(window.FUC_DEFAULTS.site.credit)}</a></p>
     </div>`;
     document.body.append(footer);
@@ -111,28 +109,8 @@
       const win = window.open(a.href, 'fucsocial', `popup=yes,width=${w},height=${h},left=${Math.max(0, l)},top=${t}`);
       if (win) { e.preventDefault(); win.focus(); }
     });
-    /* appli (web app) : installation en un bouton, guide sur iPhone */
-    let instEvt = null;
-    const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-    if (standalone()) document.documentElement.classList.add('is-app');
-    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); instEvt = e; });
-    window.addEventListener('appinstalled', () => { instEvt = null; document.documentElement.classList.add('is-app'); });
-    if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
-    const appGuide = (steps) => {
-      const dl = document.createElement('dialog'); dl.className = 'app-guide';
-      dl.innerHTML = `<img src="assets/img/app-192.png" alt="" width="64" height="64"><h2 class="display">L’appli Fucstyle</h2><ol>${steps.map((x) => `<li>${x}</li>`).join('')}</ol><button class="btn btn--blood" type="button">J’ai compris</button>`;
-      document.body.append(dl); dl.showModal(); $('button', dl).addEventListener('click', () => { dl.close(); dl.remove(); });
-    };
-    document.addEventListener('click', async (e) => {
-      if (!e.target.closest('[data-appdl]')) return;
-      if (instEvt) { instEvt.prompt(); await instEvt.userChoice; instEvt = null; return; }
-      const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      const share = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#0a84ff" stroke-width="2" style="vertical-align:-4px"><path d="M12 3v12M7 8l5-5 5 5M5 12v8h14v-8"/></svg>';
-      if (ios && /CriOS|FxiOS|EdgiOS/.test(navigator.userAgent)) return appGuide(['Ouvre cette page dans <b>Safari</b> (sur iPhone, l’appli s’installe depuis Safari).', 'Touche ' + share + ' <b>Partager</b>, puis <b>« Sur l’écran d’accueil »</b>.']);
-      if (ios) return appGuide(['Touche ' + share + ' <b>Partager</b> en bas de l’écran.', 'Choisis <b>« Sur l’écran d’accueil »</b>.', 'Touche <b>Ajouter</b> : l’appli Fucstyle est sur ton téléphone.']);
-      if (/Android/.test(navigator.userAgent)) return appGuide(['Touche le menu <b>⋮</b> en haut à droite de Chrome.', 'Choisis <b>« Installer l’application »</b> ou <b>« Ajouter à l’écran d’accueil »</b>.']);
-      appGuide(['Dans Chrome ou Edge, clique sur l’icône <b>Installer</b> à droite de la barre d’adresse.', 'Ou ouvre le site sur ton téléphone et touche <b>Télécharger l’appli</b>.']);
-    });
+    /* plus d'appli pour le public : on retire l'ancien service worker s'il a été installé */
+    if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => { if (!/fucstyleouinouin69100/.test(r.scope)) r.unregister(); })).catch(() => {});
     const setMenu = (o) => { nav.classList.toggle('open', o); menuBtn.setAttribute('aria-expanded', o); document.body.style.overflow = o ? 'hidden' : ''; document.body.classList.toggle('menu-open', o); };
     menuBtn.addEventListener('click', () => setMenu(!nav.classList.contains('open')));
     $('.nav-close', nav).addEventListener('click', () => { setMenu(false); menuBtn.focus(); });
