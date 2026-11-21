@@ -26,10 +26,10 @@
       introVideo: 'assets/video/intro.mp4',
       introVideoPoster: 'assets/video/intro.jpg',
       introVideoMode: 'home',
-      clipsV: 2,
+      clipsV: 3,
       clips: [
         { id: 'uDvVj8N55mU', title: 'Vanille Pistache (feat Sakage)' },
-        { id: 'P4RaRQGWOdg', title: '69💯 Le🩸' },
+        { id: 'P4RaRQGWOdg', title: 'Fatcap (feat Tapas Nocturne)' },
         { id: 'hWJVY4F6zps', title: 'Chaise Musical(e) (feat Aka Seul Two)' }
       ],
       bioPhoto: U + '2025/10/Fucstyle.jpg',
