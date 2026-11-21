@@ -75,11 +75,12 @@
     });
 
     const sp = S.sitePromo(D);
-    const an = sp ? { active: true, text: sp.bannerText || sp.name, url: 'boutique.html', style: sp.bannerStyle } : site.announcement;
+    const an = sp ? { active: true, text: sp.bannerText || sp.name, url: 'boutique.html', colors: S.bannerColors(sp) } : site.announcement;
     if (an && an.active && an.text) {
       let seen = ''; try { seen = sessionStorage.getItem('fucstyle:announce'); } catch (e) {}
       if (seen !== an.text) {
-        const bar = document.createElement('div'); bar.className = 'announce' + (an.style === 'noir' ? ' announce--noir' : ''); bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', 'Annonce');
+        const bar = document.createElement('div'); bar.className = 'announce';
+        if (an.colors) { bar.style.background = an.colors.bannerBg; bar.style.color = an.colors.bannerFg; bar.style.setProperty('--drop', an.colors.bannerDrop); } bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', 'Annonce');
         bar.innerHTML = (an.url ? `<a href="${esc(an.url)}">${esc(an.text)}</a>` : esc(an.text)) + '<button type="button" aria-label="Fermer l’annonce">×</button>';
         $('button', bar).addEventListener('click', () => { bar.remove(); try { sessionStorage.setItem('fucstyle:announce', an.text); } catch (e) {} });
         document.body.prepend(bar);
@@ -186,7 +187,7 @@
      Les navigateurs bloquent parfois le son automatique : dans ce cas la musique
      démarre au premier clic / toucher du visiteur. Bouton vinyle pour couper. */
   let music = null;
-  function introMusic(id, title) {
+  function introMusic(id, title, start) {
     const box = document.createElement('div');
     box.className = 'music-btn';
     box.innerHTML = `<button type="button" aria-pressed="false" aria-label="Lancer la musique"><span class="vinyl" aria-hidden="true"></span><span class="mlabel"><b>${esc(title)}</b><small>Appuie pour le son</small></span></button><div id="yt-intro" aria-hidden="true"></div>`;
@@ -208,7 +209,7 @@
     const init = () => {
       player = new YT.Player('yt-intro', {
         videoId: id, width: 200, height: 112,
-        playerVars: { autoplay: 1, controls: 0, rel: 0, playsinline: 1, loop: 1, playlist: id },
+        playerVars: Object.assign({ autoplay: 1, controls: 0, rel: 0, playsinline: 1, loop: 1, playlist: id }, start > 0 ? { start: +start } : {}),
         events: {
           onReady: (e) => { e.target.setVolume(80); e.target.unMute(); e.target.playVideo();
             setTimeout(() => { if (e.target.getPlayerState() === 1 && !e.target.isMuted()) paint(true); }, 1200); },
@@ -290,7 +291,7 @@
     home() {
       const v = $('[data-hero-video]');
       v.src = site.heroVideo;
-      if (site.autoplayClip) { const c0 = (site.clips && site.clips[0]) || { id: site.clipYoutube, title: site.clipName }; introMusic(site.introTrack || c0.id, site.introTitle || c0.title); }
+      if (site.autoplayClip) { const c0 = (site.clips && site.clips[0]) || { id: site.clipYoutube, title: site.clipName }; introMusic(site.introTrack || c0.id, site.introTitle || c0.title, site.introStart); }
       const t = esc(site.ticker); $('[data-ticker]').innerHTML = Array(8).fill(`<span>${t}</span><span aria-hidden="true">🩸</span>`).join('');
 
       $('[data-shop-title]').textContent = site.shopTitle;
@@ -646,6 +647,7 @@
     if (ds.paper) r.setProperty('--paper', ds.paper);
     if (ds.titleScale && ds.titleScale !== 1) r.setProperty('--title-scale', ds.titleScale);
     if (ds.upper === false) document.documentElement.classList.add('no-upper');
+    if (ds.cards) document.documentElement.dataset.cards = ds.cards;
   }
 
   /* ---------- Blocs ajoutés depuis le tableau de bord ---------- */

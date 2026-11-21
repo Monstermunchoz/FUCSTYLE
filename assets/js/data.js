@@ -208,7 +208,7 @@
     posts: [], // rempli par posts.js
 
     promotions: [
-      { id: 'pr-25', name: 'Vendredi noir — 1 an du projet', type: 'percent', value: 25, scope: 'all', target: '', active: true, start: '', end: '', banner: true, bannerText: '🥷 VENDREDI NOIR 🥷 Le projet 69💯 Le🩸 fête ses 1 an : −25% sur tout le site', bannerStyle: 'noir' }
+      { id: 'pr-25', name: 'Vendredi noir — 1 an du projet', type: 'percent', value: 25, scope: 'all', target: '', active: true, start: '', end: '', banner: true, bannerText: '🥷 VENDREDI NOIR 🥷 Le projet 69💯 Le🩸 fête ses 1 an : −25% sur tout le site', bannerBg: '#b0001a', bannerFg: '#ffffff', bannerDrop: '#ff2a44' }
     ],
 
     imgMeta: {},

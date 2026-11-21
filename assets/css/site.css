@@ -614,7 +614,7 @@ dialog.modal::backdrop { background: rgba(0,0,0,.7); }
 
 /* Gouttes rouges (remplacent l'emoji 🩸 qui sort rose) */
 svg.drop { display: inline-block; width: .62em; height: .78em; vertical-align: -.06em; margin: 0 .04em; fill: var(--drop, #c4001d); }
-.tape-band, .price-tag, .btn--blood, .announce, .form-msg, .cart-count, .news-form button { --drop: #fff; }
+.tape-band, .price-tag, .btn--blood, .form-msg, .cart-count, .news-form button { --drop: #fff; }
 .display svg.drop { width: .55em; height: .7em; }
 
 /* Extraits d'articles lisibles */
@@ -808,5 +808,17 @@ html.is-loading main { opacity: 0; } main { transition: opacity .2s; }
 .direct-note { display: flex; align-items: center; gap: 10px; margin-top: 18px; padding: 12px 16px; background: var(--ink, #111); color: #fff; font-weight: 700; width: max-content; max-width: 100%; transform: rotate(-.6deg); }
 .direct-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--blood); flex: none; box-shadow: 0 0 0 4px rgba(176,0,26,.35); }
 @media (max-width: 700px) { .direct-note { margin-inline: auto; } }
-.announce--noir { background: #0a0a0a; color: #fff; letter-spacing: .02em; border-bottom: 3px solid var(--blood); font-family: var(--f-display); font-weight: 900; text-transform: uppercase; font-size: 1.05rem; }
-.announce--noir a { text-decoration: none; }
+.announce { font-family: var(--f-display); font-weight: 900; text-transform: uppercase; letter-spacing: .02em; font-size: 1.05rem; }
+.announce a { text-decoration: none; }
+/* goutte rouge détourée de blanc : lisible même sur fond rouge */
+.announce svg.drop { fill: var(--drop, #ff2a44); width: .7em; height: .9em; stroke: #fff; stroke-width: 5px; paint-order: stroke; vertical-align: -.1em; }
+
+/* cadre des produits : noir par défaut, pour que les produits blancs ressortent */
+.product-card { --frame: #141414; --frame-ink: #fff; --frame-muted: #a9a49a; background: var(--frame); color: var(--frame-ink); }
+.product-card .cat { color: var(--frame-muted); }
+.product-card .meta .badge { background: var(--frame-ink); color: var(--frame); }
+.product-card img { background: #fff; }
+[data-cards="blanc"] .product-card { --frame: #fff; --frame-ink: var(--ink); --frame-muted: var(--muted); }
+[data-cards="kraft"] .product-card { --frame: #b99a6b; --frame-ink: #1a1208; --frame-muted: #4a3a22; }
+[data-cards="rouge"] .product-card { --frame: var(--blood); --frame-ink: #fff; --frame-muted: #ffd3d8; }
+[data-cards="rouge"] .product-card .price-tag { background: #0a0a0a; }

@@ -193,6 +193,8 @@
     $$('[data-notifbtn]', c).forEach((b) => b.addEventListener('click', () => enableNotifs($('[data-notifst]', c))));
   }
 
+  const BANNER_PRESETS = [['Rouge', '#b0001a', '#ffffff', '#ff2a44'], ['Noir', '#0a0a0a', '#ffffff', '#e0001f'], ['Jaune', '#ffd400', '#0a0a0a', '#c4001d'], ['Blanc', '#ffffff', '#0a0a0a', '#c4001d'], ['Béton', '#8d877c', '#ffffff', '#c4001d']];
+  const DROP_SVG = '<svg class="bn-drop" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 3C32 3 11 28.5 11 41.5C11 53.1 20.4 62 32 62C43.6 62 53 53.1 53 41.5C53 28.5 32 3 32 3Z"/></svg>';
   function getPath(o, p) { return p.split('.').reduce((a, k) => (a == null ? a : a[k]), o); }
   function setPath(o, p, v) { const ks = p.split('.'); const last = ks.pop(); const t = ks.reduce((a, k) => (a[k] = a[k] || {}), o); t[last] = v; }
   /* lie les champs [data-k] d'un conteneur à un objet */
@@ -911,6 +913,7 @@
     const isCode = kind === 'code';
     const list = isCode ? D.promos : (D.promotions = D.promotions || []);
     const r = idx != null ? clone(list[idx]) : (isCode ? { code: '', type: 'percent', value: 10, scope: 'all', target: '', active: true, uses: 0, note: '', start: '', end: '' } : { id: S.uid('pr'), name: '', type: 'percent', value: 20, scope: 'all', target: '', active: true, start: '', end: '', banner: true, bannerText: '' });
+    const bc = S.bannerColors(r);
     if (r.scope === 'product') { r.scope = 'products'; r.target = [r.target]; }
     if (r.scope === 'products' && !Array.isArray(r.target)) r.target = r.target ? [r.target] : [];
     const cats = [...new Set(D.products.map((p) => p.category))], types = [...new Set(D.products.map((p) => p.type).filter(Boolean))];
@@ -943,14 +946,16 @@
       ${isCode ? `<section class="rule-sec"><h4>Note</h4><input class="input" name="note" value="${esc(r.note || '')}" placeholder="Pour qui, pour quoi (visible seulement par toi)"></section>`
         : `<section class="rule-sec"><div class="rule-bannerrow"><h4>Bandeau en haut du site</h4><label class="switch"><input type="checkbox" name="banner"${r.banner ? ' checked' : ''}><span class="sr-only">Afficher le bandeau</span></label></div>
           <div data-bannerbox><input class="input" name="bannerText" value="${esc(r.bannerText || '')}" placeholder="Texte du bandeau, ex. −25 % sur tout le site jusqu’à dimanche">
-          <div class="seg" role="group" aria-label="Couleur du bandeau" style="margin-top:10px"><button type="button" data-bs="" aria-pressed="${!r.bannerStyle}">Rouge</button><button type="button" data-bs="noir" aria-pressed="${r.bannerStyle === 'noir'}">Noir (Vendredi noir)</button></div>
-          <div class="rule-banner-prev${r.bannerStyle === 'noir' ? ' is-noir' : ''}" data-bprev></div></div></section>`}
+          <div class="bn-colors"><span class="label">Couleurs du bandeau</span>
+            <div class="bn-presets">${BANNER_PRESETS.map((p, i) => `<button type="button" data-bpre="${i}" title="${esc(p[0])}" style="background:${p[1]};color:${p[2]}">${esc(p[0])}</button>`).join('')}</div>
+            <div class="grid-3"><label class="field"><span class="label">Fond</span><input type="color" data-bc="bannerBg" value="${esc(bc.bannerBg)}"></label><label class="field"><span class="label">Texte</span><input type="color" data-bc="bannerFg" value="${esc(bc.bannerFg)}"></label><label class="field"><span class="label">Goutte 🩸</span><input type="color" data-bc="bannerDrop" value="${esc(bc.bannerDrop)}"></label></div></div>
+          <div class="rule-banner-prev" data-bprev></div></div></div></section>`}
 
       <div class="rule-foot"><label class="switch"><input type="checkbox" name="active"${r.active ? ' checked' : ''}> Active</label><span><button class="btn" type="button" data-x>Annuler</button> <button class="btn btn--primary" type="submit">Enregistrer</button></span></div>
     </form>`;
     document.body.append(dlg); dlg.showModal();
-    let bStyle = r.bannerStyle || '';
-    $$('[data-bs]', dlg).forEach((b) => b.addEventListener('click', () => { bStyle = b.dataset.bs; $$('[data-bs]', dlg).forEach((x) => x.setAttribute('aria-pressed', x === b)); const bp = $('[data-bprev]', dlg); if (bp) bp.classList.toggle('is-noir', bStyle === 'noir'); }));
+    $$('[data-bc]', dlg).forEach((i) => i.addEventListener('input', () => { bc[i.dataset.bc] = i.value; sync(); }));
+    $$('[data-bpre]', dlg).forEach((b) => b.addEventListener('click', () => { const p = BANNER_PRESETS[+b.dataset.bpre]; [bc.bannerBg, bc.bannerFg, bc.bannerDrop] = [p[1], p[2], p[3]]; $$('[data-bc]', dlg).forEach((i) => (i.value = bc[i.dataset.bc])); sync(); }));
     const form = $('form', dlg);
     const val = () => +String(form.value.value).replace(',', '.') || 0;
     const sync = () => {
@@ -960,7 +965,7 @@
       const v = val();
       $('[data-ex]', dlg).innerHTML = pp && v > 0 ? `Exemple : ${esc(pp.name)} <s>${money(pp.price)}</s> <b>${money(Math.max(0, r.type === 'percent' ? pp.price * (1 - v / 100) : pp.price - v))}</b>` : '';
       if (r.scope === 'products') $('[data-pcount]', dlg).textContent = r.target.length + ' produit' + (r.target.length > 1 ? 's' : '') + ' choisi' + (r.target.length > 1 ? 's' : '');
-      const bp = $('[data-bprev]', dlg); if (bp) { $('[data-bannerbox]', dlg).hidden = !form.banner.checked; bp.textContent = form.bannerText.value || form.name.value || 'Ton message ici'; }
+      const bp = $('[data-bprev]', dlg); if (bp) { $('[data-bannerbox]', dlg).hidden = !form.banner.checked; bp.innerHTML = esc(form.bannerText.value || form.name.value || 'Ton message ici').replace(/🩸/g, DROP_SVG); bp.style.background = bc.bannerBg; bp.style.color = bc.bannerFg; bp.style.setProperty('--drop', bc.bannerDrop); }
     };
     $$('[data-unit]', dlg).forEach((b) => b.addEventListener('click', () => { r.type = b.dataset.unit; $$('[data-unit]', dlg).forEach((x) => x.setAttribute('aria-pressed', x === b)); sync(); }));
     $$('[data-scope]', dlg).forEach((b) => b.addEventListener('click', () => {
@@ -1000,7 +1005,7 @@
         if (!r.code) return toast('Indique le code.', true);
         if (D.promos.some((p, i) => p.code === r.code && i !== idx)) return toast('Ce code existe déjà.', true);
       } else {
-        r.name = form.name.value.trim() || valueLabel(r) + ' — ' + scopeLabel(r); r.banner = form.banner.checked; r.bannerText = form.bannerText.value.trim(); if (bStyle) r.bannerStyle = bStyle; else delete r.bannerStyle;
+        r.name = form.name.value.trim() || valueLabel(r) + ' — ' + scopeLabel(r); r.banner = form.banner.checked; r.bannerText = form.bannerText.value.trim(); Object.assign(r, bc); delete r.bannerStyle;
       }
       if (idx != null) list[idx] = r; else list.unshift(r);
       save(isCode ? 'Code enregistré' : 'Promotion enregistrée'); dlg.close(); dlg.remove(); route();
@@ -1340,7 +1345,7 @@
   /* ================= TYPOS & COULEURS ================= */
   const FONTS_DISPLAY = ['Big Shoulders Stencil Display', 'Anton', 'Bebas Neue', 'Oswald', 'Archivo Black', 'Bungee', 'Rubik Mono One', 'Permanent Marker', 'Rock Salt', 'Black Ops One', 'Teko', 'Staatliches'];
   const FONTS_TEXT = ['Archivo', 'Inter', 'DM Sans', 'Space Grotesk', 'Work Sans', 'Manrope', 'Rubik', 'IBM Plex Sans', 'Space Mono'];
-  const DESIGN_DEFAULT = { display: 'Big Shoulders Stencil Display', text: 'Archivo', blood: '#b0001a', wall: '#b9b4aa', paper: '#ebe8e1', titleScale: 1, upper: true };
+  const DESIGN_DEFAULT = { display: 'Big Shoulders Stencil Display', text: 'Archivo', blood: '#b0001a', wall: '#b9b4aa', paper: '#ebe8e1', titleScale: 1, upper: true, cards: 'noir' };
   views.design = (c) => {
     const ds = Object.assign({}, DESIGN_DEFAULT, D.design || {});
     const fam = (f) => 'family=' + f.replace(/ /g, '+') + ':wght@400;700;900';
@@ -1367,6 +1372,8 @@
           <div class="field"><label for="cb">Rouge (accent)</label><input id="cb" type="color" data-col="blood" value="${esc(ds.blood)}"></div>
           <div class="field"><label for="cw">Fond béton</label><input id="cw" type="color" data-col="wall" value="${esc(ds.wall)}"></div>
           <div class="field"><label for="cp">Fond papier</label><input id="cp" type="color" data-col="paper" value="${esc(ds.paper)}"></div></div></section>
+        <section class="panel"><div class="panel-head"><div><h2>Cadre des produits</h2><p>La couleur du cadre photo autour de chaque produit. Le noir fait ressortir les T-shirts et vinyles blancs.</p></div></div><div class="panel-body card-frames">
+          ${[['noir', 'Noir', '#141414', '#fff'], ['blanc', 'Blanc', '#fff', '#111'], ['kraft', 'Kraft', '#b99a6b', '#1a1208'], ['rouge', 'Rouge', ds.blood, '#fff']].map(([k, l, bg, fg]) => `<button type="button" data-cards="${k}" aria-pressed="${(ds.cards || 'noir') === k}"><span style="background:${bg};color:${fg}"><i></i><b>T-shirt</b></span>${l}</button>`).join('')}</div></section>
         <section class="panel"><div class="panel-head"><h2>Titres</h2></div><div class="panel-body stack">
           <div class="field"><label for="ts">Taille des grands titres <b data-tsv>${Math.round(ds.titleScale * 100)} %</b></label><input id="ts" type="range" min="0.7" max="1.3" step="0.05" value="${ds.titleScale}" data-ts></div>
           <label class="switch"><input type="checkbox" data-up${ds.upper ? ' checked' : ''}> Titres en majuscules</label></div></section>
@@ -1383,6 +1390,7 @@
     const pick = (host, key) => host.addEventListener('click', (e) => { const b = e.target.closest('[data-font]'); if (!b) return; ds[key] = b.dataset.font; $$('[data-font]', host).forEach((x) => x.setAttribute('aria-pressed', x === b)); paint(); });
     pick($('[data-fd]', c), 'display'); pick($('[data-ft]', c), 'text');
     $$('[data-col]', c).forEach((i) => i.addEventListener('input', () => { ds[i.dataset.col] = i.value; paint(); }));
+    $$('[data-cards]', c).forEach((b) => b.addEventListener('click', () => { ds.cards = b.dataset.cards; $$('[data-cards]', c).forEach((x) => x.setAttribute('aria-pressed', x === b)); paint(); }));
     $('[data-ts]', c).addEventListener('input', (e) => { ds.titleScale = +e.target.value; $('[data-tsv]', c).textContent = Math.round(ds.titleScale * 100) + ' %'; paint(); });
     $('[data-up]', c).addEventListener('change', (e) => { ds.upper = e.target.checked; paint(); });
     $('[data-fontfile]', c).addEventListener('change', async (e) => {
@@ -1565,8 +1573,19 @@
   views.musique = (c) => {
     const ytId = (u) => { const m = String(u).match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/); return m ? m[1] : (/^[\w-]{11}$/.test(u) ? u : ''); };
     const draw = () => {
-      c.innerHTML = head('Musique & scène', 'Clips, freestyles, discographie et dates de concert.')
+      const curId = ytId(D.site.introTrack || '') || ((D.site.clips[0] && D.site.clips[0].id) || '');
+      c.innerHTML = head('Musique & scène', 'Musique d’entrée, clips, freestyles, discographie et dates de concert.')
         + `<div class="stack">
+        <section class="panel intro-panel"><div class="panel-head"><div><h2>Musique d’entrée du site</h2><p>Le morceau qui se lance quand on arrive sur l’accueil, avec le vinyle qui tourne en bas de l’écran.</p></div>
+          <label class="switch"><input type="checkbox" data-introon${D.site.autoplayClip ? ' checked' : ''}> ${D.site.autoplayClip ? 'Activée' : 'Coupée'}</label></div>
+          <div class="panel-body stack"${D.site.autoplayClip ? '' : ' style="opacity:.5"'}>
+            <span class="label">Choisis le morceau</span>
+            <div class="intro-pick">${D.site.clips.map((cl) => `<button type="button" data-intro="${esc(cl.id)}" data-introname="${esc(cl.title)}" aria-pressed="${cl.id === curId}"><img src="https://i.ytimg.com/vi/${esc(cl.id)}/mqdefault.jpg" alt=""><b>${esc(cl.title)}</b>${cl.id === curId ? '<i>♪ En cours</i>' : ''}</button>`).join('')}</div>
+            <div class="grid-3"><div class="field"><label for="itu">…ou un autre morceau (lien YouTube)</label><input id="itu" data-introurl placeholder="https://youtu.be/…" value="${D.site.clips.some((cl) => cl.id === curId) ? '' : esc(D.site.introTrack || '')}"></div>
+              <div class="field"><label for="itn">Nom sur le vinyle</label><input id="itn" data-introtitle value="${esc(D.site.introTitle || '')}"></div>
+              <div class="field"><label for="its">Commencer à (secondes)</label><input id="its" data-introstart inputmode="numeric" value="${esc(D.site.introStart || '')}" placeholder="0"><span class="hint">Pour démarrer direct sur le refrain.</span></div></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn--primary" type="button" data-introsave>Enregistrer la musique</button><a class="btn" href="../index.html" target="_blank" rel="noopener">${I('ext')} Écouter sur le site</a></div>
+            <span class="hint">Si le téléphone bloque le son au départ, la musique se lance dès que le visiteur touche l’écran.</span></div></section>
         <section class="panel"><div class="panel-head"><div><h2>Clips YouTube</h2><p>Le premier est mis en avant sur l’accueil.</p></div></div><div class="panel-body">
           <div class="list-edit">${D.site.clips.map((cl, i) => `<div class="list-item"><img src="https://i.ytimg.com/vi/${esc(cl.id)}/mqdefault.jpg" alt=""><div class="f"><input class="input" value="${esc(cl.title)}" data-cltitle="${i}" aria-label="Titre du clip"><small style="color:var(--muted)">youtube.com/watch?v=${esc(cl.id)}</small></div>
             <div class="row-actions">${i ? `<button class="btn btn--icon btn--sm" type="button" data-clup="${i}" aria-label="Monter">${I('left')}</button>` : ''}<button class="btn btn--icon btn--sm btn--danger" type="button" data-clrm="${i}" aria-label="Supprimer">${I('trash')}</button></div></div>`).join('')}</div>
@@ -1591,6 +1610,16 @@
       $$('[data-cltitle]', c).forEach((i) => i.addEventListener('change', () => { D.site.clips[+i.dataset.cltitle].title = i.value; save('Clip renommé'); }));
       $$('[data-clup]', c).forEach((b) => b.addEventListener('click', () => { const i = +b.dataset.clup; const a = D.site.clips; [a[i - 1], a[i]] = [a[i], a[i - 1]]; save('Ordre des clips enregistré'); draw(); }));
       $$('[data-clrm]', c).forEach((b) => b.addEventListener('click', async () => { if (await confirmBox('Retirer ce clip ?', 'Il ne sera plus affiché sur le site.', 'Retirer')) { D.site.clips.splice(+b.dataset.clrm, 1); save('Clip retiré'); draw(); } }));
+      $('[data-introon]', c).addEventListener('change', (e) => { D.site.autoplayClip = e.target.checked; save(e.target.checked ? 'Musique d’entrée activée' : 'Musique d’entrée coupée'); draw(); });
+      $$('[data-intro]', c).forEach((b) => b.addEventListener('click', () => { $$('[data-intro]', c).forEach((x) => x.setAttribute('aria-pressed', x === b)); $('[data-introurl]', c).value = ''; $('[data-introtitle]', c).value = b.dataset.introname; c.dataset.introPick = b.dataset.intro; }));
+      $('[data-introsave]', c).addEventListener('click', () => {
+        const u = $('[data-introurl]', c).value.trim();
+        let id = c.dataset.introPick || curId;
+        if (u) { id = ytId(u); if (!id) return toast('Ce lien YouTube n’est pas reconnu.', true); }
+        D.site.introTrack = id; D.site.introTitle = $('[data-introtitle]', c).value.trim() || 'Fucstyle';
+        const st = parseInt($('[data-introstart]', c).value, 10); D.site.introStart = st > 0 ? st : 0;
+        D.site.autoplayClip = true; delete c.dataset.introPick; save('Musique d’entrée : ' + D.site.introTitle); draw();
+      });
       $('[data-cladd]', c).addEventListener('click', () => { const id = ytId($('[data-clurl]', c).value.trim()); if (!id) return toast('Colle un lien YouTube valide.', true); D.site.clips.unshift({ id, title: $('[data-clname]', c).value.trim() || 'Nouveau clip' }); save('Clip ajouté en tête'); draw(); });
       $$('[data-fsurl]', c).forEach((i) => i.addEventListener('change', () => { D.freestyles[+i.dataset.fsurl].url = i.value.trim(); save('Lien enregistré'); }));
       $$('[data-fsmv]', c).forEach((b) => b.addEventListener('click', () => { const i = +b.dataset.fsmv, j = i + +b.dataset.d; [D.freestyles[i], D.freestyles[j]] = [D.freestyles[j], D.freestyles[i]]; save(); draw(); }));

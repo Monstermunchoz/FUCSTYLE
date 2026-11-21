@@ -258,9 +258,14 @@
     return { ok: r.ok, status: r.status, data };
   };
   /* complète les promos déjà en base avec les nouveaux réglages par défaut (texte du bandeau…) */
+  /* couleurs du bandeau (fond, texte, goutte) avec les anciennes promos */
+  Store.bannerColors = function (p) {
+    const base = p && p.bannerStyle === 'noir' ? ['#0a0a0a', '#ffffff', '#e0001f'] : ['#b0001a', '#ffffff', '#ff2a44'];
+    return { bannerBg: (p && p.bannerBg) || base[0], bannerFg: (p && p.bannerFg) || base[1], bannerDrop: (p && p.bannerDrop) || base[2] };
+  };
   Store.fill = function (d) {
     const def = (window.FUC_DEFAULTS.promotions || []);
-    (d.promotions || []).forEach((p) => { const o = def.find((x) => x.id === p.id); if (!o) return; if (!p.bannerText && o.bannerText) { p.bannerText = o.bannerText; if (o.name) p.name = o.name; } if (!p.bannerStyle && o.bannerStyle) p.bannerStyle = o.bannerStyle; });
+    (d.promotions || []).forEach((p) => { const o = def.find((x) => x.id === p.id); if (!o) return; if (!p.bannerText && o.bannerText) { p.bannerText = o.bannerText; if (o.name) p.name = o.name; } if (p.id === 'pr-25' && p.bannerStyle === 'noir' && !p.bannerBg) delete p.bannerStyle; });
     return d;
   };
   /* contenu public du site depuis la base */

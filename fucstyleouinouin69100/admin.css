@@ -502,7 +502,6 @@ img:not([src]), img[src=""] { visibility: hidden; }
 .font-list { display: grid; gap: 8px; }
 .font-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; }
 .font-row small { color: var(--muted); }
-.rule-banner-prev.is-noir { background: #0a0a0a !important; color: #fff !important; border-bottom: 3px solid #b0001a; }
 
 /* ===== Appli + PayPal guidés ===== */
 .app-card { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 14px 16px; align-items: center; }
@@ -528,3 +527,23 @@ img:not([src]), img[src=""] { visibility: hidden; }
 .pp-paste { display: flex; gap: 8px; } .pp-paste input { flex: 1; min-width: 0; font-family: ui-monospace, monospace; font-size: 13px; }
 .pp-done { padding: 14px 16px; border-radius: 10px; background: #e7f6ec; color: #0d5c2a; }
 [data-theme="dark"] .pp-done { background: #11331d; color: #a5e5bb; }
+.bn-colors { margin-top: 12px; display: grid; gap: 10px; }
+.bn-presets { display: flex; gap: 6px; flex-wrap: wrap; }
+.bn-presets button { border: 1px solid #0003; border-radius: 6px; padding: 7px 12px; font-weight: 700; font-size: 13px; cursor: pointer; }
+.bn-colors input[type=color] { width: 100%; height: 40px; padding: 2px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--panel); }
+.rule-banner-prev { text-transform: uppercase; font-weight: 900; }
+.bn-drop { display: inline-block; width: .75em; height: .95em; vertical-align: -.12em; fill: var(--drop, #ff2a44); stroke: #fff; stroke-width: 5px; paint-order: stroke; }
+.intro-panel .panel-head .switch { margin-left: auto; }
+.intro-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.intro-pick button { display: grid; gap: 6px; text-align: left; border: 2px solid var(--line); border-radius: 10px; padding: 6px; background: var(--panel); color: var(--text); cursor: pointer; position: relative; }
+.intro-pick button img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 6px; background: #ddd; }
+.intro-pick button b { font-size: 13px; padding: 0 4px 4px; }
+.intro-pick button[aria-pressed="true"] { border-color: var(--blood); box-shadow: 0 0 0 3px rgba(176,0,26,.15); }
+.intro-pick i { position: absolute; top: 12px; left: 12px; background: var(--blood); color: #fff; font: 700 11px/1 system-ui; padding: 4px 7px; border-radius: 4px; font-style: normal; }
+.intro-panel .grid-3 { align-items: start; }
+.card-frames { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.card-frames button { display: grid; gap: 8px; justify-items: center; border: 2px solid var(--line); border-radius: 10px; padding: 10px; background: #b9b4aa; font-weight: 700; color: #111; cursor: pointer; }
+.card-frames button[aria-pressed="true"] { border-color: var(--blood); box-shadow: 0 0 0 3px rgba(176,0,26,.2); }
+.card-frames span { display: grid; gap: 6px; width: 76px; padding: 6px 6px 8px; box-shadow: 0 6px 10px -6px #0008; font-size: 11px; text-align: left; }
+.card-frames i { display: block; aspect-ratio: 1; background: #fff; }
+@media (max-width: 520px) { .card-frames { grid-template-columns: repeat(2, 1fr); } }
