@@ -185,12 +185,21 @@
     return `<div class="app-card${compact ? ' app-card--strip' : ''}"><img src="icon-192.png" alt="" width="56" height="56">
       <div class="app-txt"><b>L’appli Fucstyle sur ton téléphone</b><span>Une icône sur ton écran d’accueil et une notif à chaque commande ou message.</span></div>
       <div class="app-btns">${inst ? `${pill('ok', 'Appli installée')}` : `<button class="btn btn--primary" type="button" data-appinstall>${I('download')} Télécharger l’appli</button>`}
-      ${on ? `${pill('ok', 'Notifications activées')}` : `<button class="btn${inst ? ' btn--primary' : ''}" type="button" data-notifbtn>${I('bell')} Activer les notifications</button>`}</div>
+      ${on ? `${pill('ok', 'Notifications activées')}${compact ? '' : `<button class="btn" type="button" data-pushtest>${I('bell')} M’envoyer une notif de test</button>`}` : `<button class="btn${inst ? ' btn--primary' : ''}" type="button" data-notifbtn>${I('bell')} Activer les notifications</button>`}</div>
       <span class="hint app-st" data-notifst></span></div>`;
   }
   function bindAppCard(c) {
     $$('[data-appinstall]', c).forEach((b) => b.addEventListener('click', installApp));
     $$('[data-notifbtn]', c).forEach((b) => b.addEventListener('click', () => enableNotifs($('[data-notifst]', c))));
+    $$('[data-pushtest]', c).forEach((b) => b.addEventListener('click', async () => {
+      const st = $('[data-notifst]', c);
+      if (!REMOTE) return (st.textContent = 'Le test marche sur le site en ligne seulement.');
+      b.disabled = true; st.textContent = 'Envoi…';
+      try { const reg = await navigator.serviceWorker.ready; const sub = reg.pushManager && (await reg.pushManager.getSubscription()); if (sub) await S.api('admin', { method: 'POST', body: { action: 'push', subscription: sub.toJSON() } }); } catch (e) {}
+      const r = await S.api('admin', { method: 'POST', body: { action: 'pushtest' } }); b.disabled = false;
+      if (!r.ok) return (st.textContent = 'Envoi impossible pour l’instant, réessaie.');
+      st.textContent = r.data.sent ? `Notif envoyée sur ${r.data.sent} appareil${r.data.sent > 1 ? 's' : ''}. Ferme l’appli : elle arrive en quelques secondes.` : 'Aucun appareil inscrit : appuie d’abord sur « Activer les notifications » dans l’appli installée.';
+    }));
   }
 
   const BANNER_PRESETS = [['Rouge', '#b0001a', '#ffffff', '#ff2a44'], ['Noir', '#0a0a0a', '#ffffff', '#e0001f'], ['Jaune', '#ffd400', '#0a0a0a', '#c4001d'], ['Blanc', '#ffffff', '#0a0a0a', '#c4001d'], ['Béton', '#8d877c', '#ffffff', '#c4001d'], ['Beige', '#ebe8e1', '#0a0a0a', '#c4001d']];

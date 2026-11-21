@@ -4,7 +4,7 @@
    POST /api/admin {action:'patch', list, upsert, remove} -> met à jour commandes / messages / inscrits sans rien écraser
    POST /api/admin {action:'push', subscription}         -> inscrit le téléphone aux notifications
    GET  /api/admin?vapid=1                               -> clé publique des notifications */
-import { redis, send, readBody, noDb, isAdmin, hash, sessionFor, passwordHash, getSite, getList, setList, vapid } from './_lib.js';
+import { redis, send, readBody, noDb, isAdmin, hash, sessionFor, passwordHash, getSite, getList, setList, vapid, pushToAdmin } from './_lib.js';
 
 export default async function handler(req, res) {
   if (!redis) return noDb(res);
@@ -40,6 +40,11 @@ async function main(req, res) {
     up.forEach((v, k) => { if (!cur.some((x) => x[key] === k)) out.unshift(v); });
     await setList(b.list, out);
     return send(res, 200, { ok: true, count: out.length });
+  }
+  if (b.action === 'pushtest') {
+    const subs = (await redis.get('fuc:pushsubs')) || [];
+    const sent = await pushToAdmin({ title: 'Test Fucstyle 🔔', body: 'Ça marche ! Tu seras prévenu comme ça à chaque commande et chaque message.', url: './#/' });
+    return send(res, 200, { devices: subs.length, sent });
   }
   if (b.action === 'push' && b.subscription && b.subscription.endpoint) {
     const subs = (await redis.get('fuc:pushsubs')) || [];

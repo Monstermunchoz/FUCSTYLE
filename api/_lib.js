@@ -60,17 +60,18 @@ export function publicView(site) {
 export async function pushToAdmin(payload) {
   try {
     const subs = (await redis.get('fuc:pushsubs')) || [];
-    if (!subs.length) return;
+    if (!subs.length) return 0;
     const webpush = (await import('web-push')).default;
     const keys = await vapid();
     webpush.setVapidDetails('mailto:fucstyler@gmail.com', keys.publicKey, keys.privateKey);
-    const alive = [];
+    const alive = []; let ok = 0;
     for (const s of subs) {
-      try { await webpush.sendNotification(s, JSON.stringify(payload)); alive.push(s); }
+      try { await webpush.sendNotification(s, JSON.stringify(payload), { TTL: 86400, urgency: 'high' }); alive.push(s); ok++; }
       catch (e) { if (e.statusCode !== 404 && e.statusCode !== 410) alive.push(s); }
     }
     await redis.set('fuc:pushsubs', alive);
-  } catch (e) { /* une notif ratée ne bloque jamais une commande */ }
+    return ok;
+  } catch (e) { return 0; /* une notif ratée ne bloque jamais une commande */ }
 }
 export async function vapid() {
   let k = await redis.get('fuc:vapid');
